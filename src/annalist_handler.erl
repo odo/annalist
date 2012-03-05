@@ -77,8 +77,14 @@ handle(Req, State) ->
 			throw({error, {unknown_context, Other}})
 	end,
 	JSON = json:to_binary(Counts, Callback),
-    {ok, Req2} = cowboy_http_req:reply(200, [], JSON, Req),
-    {ok, Req2, State}.
+	ContentType =
+	case Callback of
+		undefined -> 	"application/json";
+		_ -> 			"application/javascript"
+	end,
+    {ok, Req2} = cowboy_http_req:set_resp_header('Content-Type', ContentType, Req),
+    {ok, Req3} = cowboy_http_req:reply(200, [], JSON, Req2),
+    {ok, Req3, State}.
 
 terminate(_Req, _State) ->
     ok.
