@@ -5,17 +5,17 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
--export([encode_key/2, encode_tags/1]).
+-export([encode_key/2, encode_bucket/1]).
 -endif.
 
 -export([
-	count/3,
+	count/4,
 	counts/5,
 	counts_with_labels/5
 ]).
 
 
--define(KEYSEPARATOR, <<":">>).
+-define(KEYSEPARATOR, <<"/$annalist_keysep">>).
 
 counts(Tags, Scope, TimeStart, Steps, DBHandle) ->
 	[V || {_, V} <- counts_with_labels(Tags, Scope, TimeStart, Steps, DBHandle)].
@@ -35,47 +35,47 @@ counts_with_labels(Tags, Scope, TimeStart, Steps, DBHandle) ->
 	unsparse_range(CountsSparse, TimeRange, 0).
 
 counts_with_full_keys(Tags, Scope, TimeStart, TimeEnd, DBHandle) ->
-	Bucket = encode_tags(Tags),
+	Bucket = encode_bucket(Tags),
 	KeyStart = encode_key(Scope, TimeStart),
 	KeyEnd = encode_key(Scope, TimeEnd),
 	[{decode_key(K), V} || {K, V} <- uplevel:range(Bucket, KeyStart, KeyEnd, DBHandle)].
 
-count(Tags, {{Y, Mo, D}, {H, Mi, S}}, DBHandle) ->
-	record_tag(Tags, {Y, Mo, D, H, Mi, S}, 	<<"second">>, 	DBHandle),
-	record_tag(Tags, {Y, Mo, D, H, Mi}, 	<<"minute">>, 	DBHandle),
-	record_tag(Tags, {Y, Mo, D, H},	 		<<"hour">>, 	DBHandle),
-	record_tag(Tags, {Y, Mo, D},		 	<<"day">>, 		DBHandle),
-	record_tag(Tags, {Y, Mo},				<<"month">>, 	DBHandle),
-	record_tag(Tags, {Y},			 		<<"year">>, 	DBHandle),
-	record_tag(Tags, {},				 	<<"total">>, 	DBHandle).
+count(Increment, Tags, {{Y, Mo, D}, {H, Mi, S}}, DBHandle) ->
+	record_tag(Increment, Tags, {Y, Mo, D, H, Mi, S},	<<"second">>, 	DBHandle),
+	record_tag(Increment, Tags, {Y, Mo, D, H, Mi}, 		<<"minute">>, 	DBHandle),
+	record_tag(Increment, Tags, {Y, Mo, D, H},	 		<<"hour">>, 	DBHandle),
+	record_tag(Increment, Tags, {Y, Mo, D},		 		<<"day">>, 		DBHandle),
+	record_tag(Increment, Tags, {Y, Mo},				<<"month">>, 	DBHandle),
+	record_tag(Increment, Tags, {Y},			 		<<"year">>, 	DBHandle),
+	record_tag(Increment, Tags, {},				 		<<"total">>, 	DBHandle).
 
-record_tag([], _, _, _) -> ok;
+record_tag(_, [], _, _, _) -> ok;
 
-record_tag(Tags, Time, Scope, DBHandle) ->
-	increment(Tags, 	 Time, Scope, DBHandle),
+record_tag(Increment, Tags, Time, Scope, DBHandle) ->
+	increment(Increment, Tags, Time, Scope, DBHandle),
 	[_| TagsRest] = lists:reverse(Tags),
-	record_tag(lists:reverse(TagsRest), Time, Scope, DBHandle).
+	record_tag(Increment, lists:reverse(TagsRest), Time, Scope, DBHandle).
 
-increment(Tags, Time, Scope, DBHandle) ->
-	Bucket = encode_tags(Tags),
+increment(Increment, Tags, Time, Scope, DBHandle) ->
+	Bucket = encode_bucket(Tags),
 	Key = encode_key(Scope, Time),
 	Count =
 	case uplevel:get(Bucket, Key, DBHandle, []) of
 		not_found -> 0;
 		{Key, Number} -> Number
 	end,
-	uplevel:put(Bucket, Key, Count + 1, DBHandle, []).	
+	uplevel:put(Bucket, Key, Count + Increment, DBHandle, []).	
 
-encode_tags(Tags) ->
-	encode_tags(Tags, <<>>).
+encode_bucket(Tags) ->
+	encode_bucket(Tags, <<>>).
 
-encode_tags([], TagsBinary) ->
+encode_bucket([], TagsBinary) ->
 	TagsBinary;
 
-encode_tags([T | Tags], TagsBinary) ->
+encode_bucket([T | Tags], TagsBinary) ->
 	TagBinary = list_to_binary(atom_to_list(T)),
 	TagsBinaryNew = <<TagsBinary/binary, <<"/">>/binary, TagBinary/binary>>,
-	encode_tags(Tags, TagsBinaryNew).
+	encode_bucket(Tags, TagsBinaryNew).
 
 encode_key(Scope, Time) ->
 	TimeEnc = encode_time(Time),
@@ -165,7 +165,7 @@ time_encoding_test()  ->
 	[?assertEqual(Time, decode_time(encode_time(Time))) || Time <- Times].
 
 tag_encoding_test() ->
-	?assertEqual(<<"/first/second/third">>, encode_tags([first, second, third])).
+	?assertEqual(<<"/first/second/third">>, encode_bucket([first, second, third])).
 
 unsparse_range_test() ->
 	Sparse = [{1, one}, {2, two}, {4, four}],

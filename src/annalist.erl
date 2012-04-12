@@ -11,8 +11,11 @@
 
 -export([
 	start/1,
+	queue_length/0,
+	beacon/0,
 	count_sync/1, count_sync/2,
 	count/1, count/2,
+	count_sparse/2, count_sparse/3,
 	counts_with_labels/4,
 	counts/4,
 	leveldb_handle/0
@@ -37,12 +40,21 @@ start(LevelDBDir) ->
 	application:start(annalist).
 
 % API
+
+queue_length() ->
+	{_, Length}  = erlang:process_info(whereis(?SERVER), message_queue_len),
+	Length.
+
 -spec start_link(list()) -> [{ok, pid()}].
 start_link(ElevelDBDir) ->
 	gen_server:start_link({local, ?SERVER}, ?MODULE, [ElevelDBDir], []).
 	
 stop() ->
 	gen_server:call(?SERVER, {stop}).
+
+-spec beacon() -> ok.
+beacon() ->
+	gen_server:call(?SERVER, {beacon}).
 
 -spec count_sync(tags()) -> ok.
 count_sync(Tags) ->
@@ -59,6 +71,24 @@ count(Tags) ->
 -spec count(tags(), {{integer(), integer(), integer()}, {integer(), integer(), integer()}}) -> ok.
 count(Tags, Time = {{_, _, _}, {_, _, _}}) ->
 	gen_server:cast(?SERVER, {count, Tags, Time}).
+
+-spec count_sparse(tags(), non_neg_integer()) -> ok.
+count_sparse(Tags, SparsenessFactor) ->
+	case round(random:uniform() * (SparsenessFactor - 1)) of
+		0 ->
+			gen_server:cast(?SERVER, {count_inc, SparsenessFactor, Tags, calendar:universal_time()});
+		_ ->
+			nothing
+	end.
+
+-spec count_sparse(tags(), {{integer(), integer(), integer()}, {integer(), integer(), integer()}}, non_neg_integer()) -> ok.
+count_sparse(Tags, Time = {{_, _, _}, {_, _, _}}, SparsenessFactor) ->
+	case random:uniform() < 1 / SparsenessFactor of
+		true ->
+			gen_server:cast(?SERVER, {count_inc, SparsenessFactor, Tags, Time});
+		false ->
+			nothing
+	end.
 
 
 -spec counts_with_labels(tags(), scope(), time(), integer()) -> ok.
@@ -109,8 +139,15 @@ leveldb_handle() ->
 init([ElevelDBDir]) ->
 	{ok, #state{handle = uplevel:handle(ElevelDBDir)}}.
 
+handle_call({beacon}, _From, State) ->
+	{reply, ok, State};
+
 handle_call({count, Tags, Time}, _From, State) ->
-	Res = counter:count(Tags, Time, State#state.handle),
+	Res = counter:count(1, Tags, Time, State#state.handle),
+	{reply, Res, State};
+
+handle_call({count_inc, Increment, Tags, Time}, _From, State) ->
+	Res = counter:count(Increment, Tags, Time, State#state.handle),
 	{reply, Res, State};
 
 handle_call({counts_with_labels, Tags, Scope, TimeStart, Steps}, _From, State) ->
@@ -128,7 +165,11 @@ handle_call({stop}, _From, State) ->
   {stop, normal, stopped, State}.
 
 handle_cast({count, Tags, Time}, State) ->
-	counter:count(Tags, Time, State#state.handle),
+	counter:count(1, Tags, Time, State#state.handle),
+	{noreply, State};
+	
+handle_cast({count_inc, Increment, Tags, Time}, State) ->
+	counter:count(Increment, Tags, Time, State#state.handle),
 	{noreply, State}.
 	
 handle_info(_Info, State) ->
@@ -153,6 +194,7 @@ store_test_() ->
       	fun test_teardown/1,
       [
       	{"test counting", fun test_counting/0},
+      	{"test sparse counting", fun test_sparse_counting/0},
       	{"test counting with time combinations", fun test_counting_time_combi/0},
       	{"test counting with tag combinations", fun test_counting_tag_combi/0},
       	{"test getting counts", fun test_counts/0}
@@ -160,6 +202,7 @@ store_test_() ->
 	].
 
 test_setup() ->
+	random:seed(now()),
 	os:cmd("rm -rf " ++ ?TESTDB),
 	start_link(?TESTDB).
 
@@ -179,10 +222,40 @@ test_counting() ->
 		{<<"total">>, {}}
 	],
 	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two, three]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two		]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one			]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual(not_found, uplevel:get(counter:encode_tags([two, three]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two		]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one			]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual(not_found, uplevel:get(counter:encode_bucket([two, three]), Key, Handle, [])) || Key <- Keys].
+
+test_sparse_counting() ->
+	Handle = leveldb_handle(),
+	Samples = 10000,
+	lists:map(
+		fun(_) ->
+			count_sparse([one, two, three], {{2012,2,6},{17,22,5}}, 20)
+		end,
+		lists:seq(1, Samples)
+	),
+	% wait for the stats to be written
+	beacon(),
+	ScopeTimes = [
+		{<<"second">>, {2012, 2, 6, 17, 22, 5}},
+		{<<"minute">>, {2012, 2, 6, 17, 22}},
+		{<<"hour">>, {2012, 2, 6, 17}},
+		{<<"day">>, {2012, 2, 6}},
+		{<<"month">>, {2012, 2}},
+		{<<"year">>, {2012}},
+		{<<"total">>, {}}
+	],
+	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
+	lists:map(
+		fun(Key) ->
+			{Key, SamplesRec} = uplevel:get(counter:encode_bucket([one, two, three]), Key, Handle, []), 
+			?assert(SamplesRec + SamplesRec * 0.1 > Samples), 
+			?assert(SamplesRec - SamplesRec * 0.1 < Samples) 
+		end,
+		Keys
+	).
 
 test_counting_time_combi() ->
 	Handle = leveldb_handle(),
@@ -198,9 +271,9 @@ test_counting_time_combi() ->
 		{<<"hour">>,   {2012, 2, 6, 18}}
 	],
 	KeysSingle = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one	 ]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one	 ]), Key, Handle, [])) || Key <- KeysSingle],
 	% should be recorded double
 	ScopeTimesDouble = [
 		{<<"day">>,   {2012, 2, 6}},
@@ -209,9 +282,9 @@ test_counting_time_combi() ->
 		{<<"total">>, {}}
 	],
 	KeysDouble = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_tags([one, two]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_tags([one, two]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_tags([one	 ]), Key, Handle, [])) || Key <- KeysDouble].
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one	 ]), Key, Handle, [])) || Key <- KeysDouble].
 
 test_counting_tag_combi() ->
 	Handle = leveldb_handle(),
@@ -227,10 +300,10 @@ test_counting_tag_combi() ->
 		{<<"total">>,  {}}
 	],
 	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two, three1]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_tags([one, two, three2]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_tags([one, two		]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_tags([one			]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three1]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three2]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two		]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one			]), Key, Handle, [])) || Key <- Keys].
 			
 test_counts() ->
 	count_sync([one, two, three], {{2012,2,6},{17,22,5}}),
