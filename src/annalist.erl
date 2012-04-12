@@ -74,12 +74,7 @@ count(Tags, Time = {{_, _, _}, {_, _, _}}) ->
 
 -spec count_sparse(tags(), non_neg_integer()) -> ok.
 count_sparse(Tags, SparsenessFactor) ->
-	case round(random:uniform() * (SparsenessFactor - 1)) of
-		0 ->
-			gen_server:cast(?SERVER, {count_inc, SparsenessFactor, Tags, calendar:universal_time()});
-		_ ->
-			nothing
-	end.
+	count_sparse(Tags, calendar:universal_time(), SparsenessFactor).
 
 -spec count_sparse(tags(), {{integer(), integer(), integer()}, {integer(), integer(), integer()}}, non_neg_integer()) -> ok.
 count_sparse(Tags, Time = {{_, _, _}, {_, _, _}}, SparsenessFactor) ->
