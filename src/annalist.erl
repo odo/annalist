@@ -21,7 +21,7 @@
 	leveldb_handle/0
 ]).
 
--type tags() :: [atom()].
+-type tags() :: [binary()].
 -type scope() :: year | month | day | hour | minute | second.
 -type time() :: {integer(), integer(), integer(), integer(), integer(), integer()} |
 				{integer(), integer(), integer(), integer(), integer()} | 
@@ -206,7 +206,7 @@ test_teardown(_) ->
 
 test_counting() ->
 	Handle = leveldb_handle(),
-	count_sync([one, two, three], {{2012,2,6},{17,22,5}}),
+	count_sync([<<"one">>, <<"two">>, <<"three">>], {{2012,2,6},{17,22,5}}),
 	ScopeTimes = [
 		{<<"second">>, {2012, 2, 6, 17, 22, 5}},
 		{<<"minute">>, {2012, 2, 6, 17, 22}},
@@ -217,17 +217,17 @@ test_counting() ->
 		{<<"total">>, {}}
 	],
 	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two		]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one			]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual(not_found, uplevel:get(counter:encode_bucket([two, three]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>				]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>						]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual(not_found, uplevel:get(counter:encode_bucket([<<"two">>, <<"three">>			]), Key, Handle, [])) || Key <- Keys].
 
 test_sparse_counting() ->
 	Handle = leveldb_handle(),
 	Samples = 10000,
 	lists:map(
 		fun(_) ->
-			count_sparse([one, two, three], {{2012,2,6},{17,22,5}}, 20)
+			count_sparse([<<"one">>, <<"two">>, <<"three">>], {{2012,2,6},{17,22,5}}, 20)
 		end,
 		lists:seq(1, Samples)
 	),
@@ -245,7 +245,7 @@ test_sparse_counting() ->
 	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
 	lists:map(
 		fun(Key) ->
-			{Key, SamplesRec} = uplevel:get(counter:encode_bucket([one, two, three]), Key, Handle, []), 
+			{Key, SamplesRec} = uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, []), 
 			?assert(SamplesRec + SamplesRec * 0.1 > Samples), 
 			?assert(SamplesRec - SamplesRec * 0.1 < Samples) 
 		end,
@@ -254,8 +254,8 @@ test_sparse_counting() ->
 
 test_counting_time_combi() ->
 	Handle = leveldb_handle(),
-	count_sync([one, two], {{2012,2,6},{17,22,5}}),
-	count_sync([one, two], {{2012,2,6},{18,16,5}}),
+	count_sync([<<"one">>, <<"two">>], {{2012,2,6},{17,22,5}}),
+	count_sync([<<"one">>, <<"two">>], {{2012,2,6},{18,16,5}}),
 	% should be recorded single
 	ScopeTimesSingle = [
 		{<<"second">>, {2012, 2, 6, 17, 22, 5}},
@@ -266,9 +266,9 @@ test_counting_time_combi() ->
 		{<<"hour">>,   {2012, 2, 6, 18}}
 	],
 	KeysSingle = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one	 ]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysSingle],
 	% should be recorded double
 	ScopeTimesDouble = [
 		{<<"day">>,   {2012, 2, 6}},
@@ -277,14 +277,14 @@ test_counting_time_combi() ->
 		{<<"total">>, {}}
 	],
 	KeysDouble = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one	 ]), Key, Handle, [])) || Key <- KeysDouble].
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysDouble].
 
 test_counting_tag_combi() ->
 	Handle = leveldb_handle(),
-	count_sync([one, two, three1], {{2012,2,6},{17,22,5}}),
-	count_sync([one, two, three2], {{2012,2,6},{17,22,5}}),
+	count_sync([<<"one">>, <<"two">>, <<"three1">>], {{2012,2,6},{17,22,5}}),
+	count_sync([<<"one">>, <<"two">>, <<"three2">>], {{2012,2,6},{17,22,5}}),
 	ScopeTimes = [
 		{<<"second">>, {2012, 2, 6, 17, 22, 5}},
 		{<<"minute">>, {2012, 2, 6, 17, 22}},
@@ -295,17 +295,17 @@ test_counting_tag_combi() ->
 		{<<"total">>,  {}}
 	],
 	Keys = [counter:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three1]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([one, two, three2]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one, two		]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([one			]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>, <<"three1">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>, <<"three2">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([<<"one">>, <<"two">>		]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(counter:encode_bucket([<<"one">>			]), Key, Handle, [])) || Key <- Keys].
 			
 test_counts() ->
-	count_sync([one, two, three], {{2012,2,6},{17,22,5}}),
+	count_sync([<<"one">>, <<"two">>, <<"three">>], {{2012,2,6},{17,22,5}}),
 	?assertEqual([{{2012,2,6,17,22,4},0},
                  {{2012,2,6,17,22,5},1},
                  {{2012,2,6,17,22,6},0}],
-                 counts_with_labels([one], second, {2012,2,6,17,22,4}, 3)),
-	?assertEqual([0, 1, 0], counts([one], second, {2012,2,6,17,22,4}, 3)).
+                 counts_with_labels([<<"one">>], second, {2012,2,6,17,22,4}, 3)),
+	?assertEqual([0, 1, 0], counts([<<"one">>], second, {2012,2,6,17,22,4}, 3)).
 
 -endif.

@@ -72,9 +72,8 @@ encode_bucket(Tags) ->
 encode_bucket([], TagsBinary) ->
 	TagsBinary;
 
-encode_bucket([T | Tags], TagsBinary) ->
-	TagBinary = list_to_binary(atom_to_list(T)),
-	TagsBinaryNew = <<TagsBinary/binary, <<"/">>/binary, TagBinary/binary>>,
+encode_bucket([Tag | Tags], TagsBinary) when is_binary(Tag) ->
+	TagsBinaryNew = <<TagsBinary/binary, <<"/">>/binary, Tag/binary>>,
 	encode_bucket(Tags, TagsBinaryNew).
 
 encode_key(Scope, Time) ->
@@ -165,16 +164,16 @@ time_encoding_test()  ->
 	[?assertEqual(Time, decode_time(encode_time(Time))) || Time <- Times].
 
 tag_encoding_test() ->
-	?assertEqual(<<"/first/second/third">>, encode_bucket([first, second, third])).
+	?assertEqual(<<"/first/second/third">>, encode_bucket([<<"first">>, <<"second">>, <<"third">>])).
 
 unsparse_range_test() ->
-	Sparse = [{1, one}, {2, two}, {4, four}],
-	?assertEqual([{1, one}, {2, two}], unsparse_range([{1, one}, {2, two}], [1, 2], undefined)),
-	?assertEqual([{1, one}, {2, two}], unsparse_range([{1, one}, {2, two}, {2, three}], [1, 2], undefined)),
-	?assertEqual([{1, one}, {2, two}, {3, undefined}, {4, four}], unsparse_range(Sparse, [1, 2, 3, 4], undefined)),
-	?assertEqual([{1, one}, {2, two}, {3, undefined}, {4, four}, {5, undefined}], unsparse_range(Sparse, [1, 2, 3, 4, 5], undefined)),
-	?assertEqual([{0, undefined}, {1, one}, {2, two}, {3, undefined}, {4, four}], unsparse_range(Sparse, [0, 1, 2, 3, 4], undefined)),
-	?assertEqual([{-1, undefined}, {0, undefined}, {1, one}, {2, two}, {3, undefined}, {4, four}, {5, undefined}, {6, undefined}], unsparse_range(Sparse, [-1, 0, 1, 2, 3, 4, 5, 6], undefined)),
+	Sparse = [{1, <<"one">>}, {2, <<"two">>}, {4, <<"four">>}],
+	?assertEqual([{1, <<"one">>}, {2, <<"two">>}], unsparse_range([{1, <<"one">>}, {2, <<"two">>}], [1, 2], undefined)),
+	?assertEqual([{1, <<"one">>}, {2, <<"two">>}], unsparse_range([{1, <<"one">>}, {2, <<"two">>}, {2, <<"three">>}], [1, 2], undefined)),
+	?assertEqual([{1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}], unsparse_range(Sparse, [1, 2, 3, 4], undefined)),
+	?assertEqual([{1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}, {5, undefined}], unsparse_range(Sparse, [1, 2, 3, 4, 5], undefined)),
+	?assertEqual([{0, undefined}, {1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}], unsparse_range(Sparse, [0, 1, 2, 3, 4], undefined)),
+	?assertEqual([{-1, undefined}, {0, undefined}, {1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}, {5, undefined}, {6, undefined}], unsparse_range(Sparse, [-1, 0, 1, 2, 3, 4, 5, 6], undefined)),
 	?assertEqual([{0, undefined}, {1, undefined}, {2, undefined}, {3, undefined}], unsparse_range([], [0, 1, 2, 3], undefined)).
 
 -endif.
