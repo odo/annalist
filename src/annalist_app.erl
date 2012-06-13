@@ -14,8 +14,15 @@ start(_StartType, _StartArgs) ->
 	case proplists:get_value(level_db_dir, application:get_all_env(annalist)) of
 		undefined ->
 			throw({error, {"level_db_dir must be configured in annalists' environment"}});
-		Val ->
-			Val
+		Dir ->
+			Dir
+	end,
+	Port =
+	case proplists:get_value(port, application:get_all_env(annalist)) of
+		undefined ->
+			throw({error, {"port must be configured in annalists' environment"}});
+		P ->
+			P
 	end,
 	% start http interface
 	application:start(cowboy),
@@ -33,7 +40,7 @@ start(_StartType, _StartArgs) ->
 	],
 	%% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
 	cowboy:start_listener(annalist_listener, 100,
-	    cowboy_tcp_transport, [{port, 8080}],
+	    cowboy_tcp_transport, [{port, Port}],
 	    cowboy_http_protocol, [{dispatch, Dispatch}]
 	),
 	application:start(sasl),
