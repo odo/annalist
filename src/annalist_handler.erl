@@ -13,7 +13,7 @@ handle(Req, State) ->
 	{CountRaw, _} = cowboy_http_req:binding(count, Req),
 	Count = binary_to_integer(CountRaw),
 	{TagsRaw, _} = cowboy_http_req:binding(tags, Req),
-	Tags = [list_to_atom(binary_to_list(T)) || T <- binary:split(TagsRaw, <<" ">>)],
+	Tags = [list_to_binary(binary_to_list(T)) || T <- binary:split(TagsRaw, <<" ">>)],
 	{Year, _} 	= cowboy_http_req:binding(year, Req),
 	{Month, _} 	= cowboy_http_req:binding(month, Req),
 	{Day, _} 	= cowboy_http_req:binding(day, Req),
