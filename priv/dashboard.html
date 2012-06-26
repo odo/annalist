@@ -43,6 +43,7 @@ Plot = function(ChartId, Title, URL, StartTime, Interval) {
 				text : Title
 			},			
 			series : [{
+				dataGrouping : {approximation : "sum"},
 				animation: false,
 				pointStart: Date.UTC(StartTime.getUTCFullYear(), StartTime.getUTCMonth(), StartTime.getUTCDate(), StartTime.getUTCHours(), StartTime.getUTCMinutes(), StartTime.getUTCSeconds()),
 				pointInterval: Interval,
