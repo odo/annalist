@@ -8,12 +8,13 @@ init({tcp, http}, Req, Opts) ->
     {ok, Req, #state{context = Context}}.
 
 handle(Req, State) ->
-	{Callback, _} = cowboy_http_req:qs_val(<<"callback">>, Req), 
+	{CallbackRaw, _} = cowboy_http_req:qs_val(<<"callback">>, Req), 
+	Callback = binary_to_list(CallbackRaw), 
 	Context = State#state.context,
 	{CountRaw, _} = cowboy_http_req:binding(count, Req),
 	Count = binary_to_integer(CountRaw),
 	{TagsRaw, _} = cowboy_http_req:binding(tags, Req),
-	Tags = [list_to_binary(binary_to_list(T)) || T <- binary:split(TagsRaw, <<" ">>)],
+	Tags = [T || T <- binary:split(TagsRaw, <<" ">>)],
 	{Year, _} 	= cowboy_http_req:binding(year, Req),
 	{Month, _} 	= cowboy_http_req:binding(month, Req),
 	{Day, _} 	= cowboy_http_req:binding(day, Req),
