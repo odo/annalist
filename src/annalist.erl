@@ -10,7 +10,7 @@
 -record (state, {handle}).
 
 -export([
-	start/2,
+	start/4,
 	queue_length/0,
 	beacon/0,
 	count_sync/1, count_sync/2,
@@ -35,9 +35,11 @@
 
 % start the app
 
-start(LevelDBDir, Port) ->
+start(LevelDBDir, Host, Port, Password) ->
 	application:set_env(annalist, level_db_dir, LevelDBDir),
-	application:set_env(annalist, port, Port),
+	application:set_env(annalist, host, 		Host),
+	application:set_env(annalist, port, 		Port),
+	application:set_env(annalist, password, 	Password),
 	application:start(annalist).
 
 % API

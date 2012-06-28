@@ -13,7 +13,7 @@ test:
 	TESTDIR=$(PWD)/private/ rebar skip_deps=true eunit
 
 start:
-	erl -pz ebin deps/*/ebin -eval 'annalist:start("/tmp/annlist", 8080).'
+	erl -pz ebin deps/*/ebin -eval 'annalist:start("/tmp/annalist", "localhost", 8080, undefined).'
 
 shell:
 	erl -pz ebin deps/*/ebin

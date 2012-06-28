@@ -10,26 +10,16 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-	LevelDBDir =
-	case proplists:get_value(level_db_dir, application:get_all_env(annalist)) of
-		undefined ->
-			throw({error, {"level_db_dir must be configured in annalists' environment"}});
-		Dir ->
-			Dir
-	end,
-	Port =
-	case proplists:get_value(port, application:get_all_env(annalist)) of
-		undefined ->
-			throw({error, {"port must be configured in annalists' environment"}});
-		P ->
-			P
-	end,
+	LevelDBDir = 	env_or_throw(level_db_dir),
+	Port = 			env_or_throw(port),
+	_Host = 		env_or_throw(host),
 	% start http interface
 	application:start(cowboy),
 	Dispatch = [
     %% {Host, list({Path, Handler, Opts})}
     {'_', [
-    		{[<<"annalist">>, <<"dashboard">>], dashboard_handler, []},
+    		{[<<"annalist">>, <<"sparks">>], 		sparks_handler, []},
+    		{[<<"annalist">>, <<"dashboard">>], 	dashboard_handler, []},
     		{[<<"annalist">>, <<"year_counts">>, 	tags, year, count], 										annalist_handler, [{context, year}]},
 		    {[<<"annalist">>, <<"month_counts">>, 	tags, year, month, count], 								annalist_handler, [{context, month}]},
 		    {[<<"annalist">>, <<"day_counts">>, 	tags, year, month, day, count], 						annalist_handler, [{context, day}]},
@@ -49,3 +39,11 @@ start(_StartType, _StartArgs) ->
 
 stop(_State) ->
     ok.
+
+env_or_throw(Key) ->
+	case proplists:get_value(Key, application:get_all_env(annalist)) of
+		undefined ->
+			throw({error, {atom_to_list(Key) ++ " must be configured in annalists' environment"}});
+		Value ->
+			Value
+	end.
