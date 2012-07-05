@@ -10,7 +10,7 @@
 -record (state, {handle}).
 
 -export([
-	start/4,
+	start/5,
 	queue_length/0,
 	beacon/0,
 	count_sync/1, count_sync/2,
