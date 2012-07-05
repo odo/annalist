@@ -13,6 +13,7 @@ start(_StartType, _StartArgs) ->
 	LevelDBDir = 	env_or_throw(level_db_dir),
 	Port = 			env_or_throw(port),
 	_Host = 		env_or_throw(host),
+	_OutsidePort = 	env_or_throw(outside_port),
 	% start http interface
 	application:start(cowboy),
 	Dispatch = [

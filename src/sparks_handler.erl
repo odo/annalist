@@ -13,7 +13,7 @@ terminate(_Req, _State) ->
 
 page() ->
 	Host = proplists:get_value(host, application:get_all_env(annalist)),
-	Port = proplists:get_value(port, application:get_all_env(annalist)),
+	Port = proplists:get_value(outside_port, application:get_all_env(annalist)),
 	PageRaw = list_to_binary(page_string()),
 	PageHost = binary:replace(PageRaw, <<"$$HOST$$">>, list_to_binary(Host)),
 	binary:replace(PageHost, <<"$$PORT$$">>, list_to_binary(integer_to_list(Port))).

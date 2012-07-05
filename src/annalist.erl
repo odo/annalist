@@ -35,10 +35,11 @@
 
 % start the app
 
-start(LevelDBDir, Host, Port, Password) ->
+start(LevelDBDir, Host, Port, OutsidePort, Password) ->
 	application:set_env(annalist, level_db_dir, LevelDBDir),
 	application:set_env(annalist, host, 		Host),
 	application:set_env(annalist, port, 		Port),
+	application:set_env(annalist, outside_port, OutsidePort),
 	application:set_env(annalist, password, 	Password),
 	application:start(annalist).
 
