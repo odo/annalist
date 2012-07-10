@@ -1,7 +1,7 @@
 -module(quantile).
 
 -ifdef(TEST).
--include_lib("proper/include/proper.hrl").
+% -include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -export([ceil/1]).
 -define(DEBUG, true).

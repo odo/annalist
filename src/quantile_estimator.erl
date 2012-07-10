@@ -76,58 +76,66 @@ insert(undefined, [], _N, _Invariant, _Rank) ->
 
 % we terminate but the group has not been added yet
 % so this is the maximum value
-insert(V, [], _, _, _) ->
-	[#group{v = V, g = 1, delta = 0}];
+insert(V, [], _, _, RankLast) ->
+	[#group{v = V, g = 1, delta = 0, rank = RankLast + 1}];
 
 % the group has already been inserted, just append
-insert(undefined, [Next|DataTail], N, _, undefined) ->
-	[Next|insert(undefined, DataTail, N, undefiend, undefined)];
+% and increase the rank by 1
+insert(undefined, [Next = #group{rank = RankNext}|DataTail], N, _, undefined) ->
+	NextUpdated = Next#group{rank = RankNext + 1},
+	[NextUpdated|insert(undefined, DataTail, N, undefiend, undefined)];
 
 % the group has not yet been insterted
-insert(V, [Next = #group{v = Vi, g = Gi}|DataTail], N, Invariant, RankLast) ->
+% insert it and continue
+insert(V, [Next = #group{v = Vi, g = Gi, rank = RankNext}|DataTail], N, Invariant, RankLast) ->
 	Ranki = RankLast + Gi,
 	% did we pass a smaller Vi?
 	case Vi >= V of
 		true ->
 			GroupNew = 
 			case Ranki =:= 1 of
-				true  -> #group{v = V, g = 1, delta = 0};
-				false -> #group{v = V, g = 1, delta = clamp(floor(Invariant(Ranki, N)) - 1)}
+				true  -> #group{v = V, g = 1, delta = 0, rank = Ranki};
+				false -> #group{v = V, g = 1, delta = clamp(floor(Invariant(Ranki, N)) - 1), rank = Ranki}
 			end,
-			[GroupNew|[Next|insert(undefined, DataTail, N, undefiend, undefined)]];
+			[GroupNew|[Next#group{rank = RankNext + 1}|insert(undefined, DataTail, N, undefiend, undefined)]];
 		false ->
 			[Next|insert(V, DataTail, N, Invariant, Ranki)]
 	end.
 
 -spec compress(invariant(), data_structure()) -> data_structure().
 compress(Invariant, {N, Data}) ->
-	{N, compress(Invariant, N, Data, 0, undefined)}.
+	{N, lists:reverse(compress(Invariant, N, lists:reverse(Data), undefined))}.
 
-compress(Invariant, N, [Next = #group{g = Gi} | Rest], RankLast, undefined)->
-	Ranki = RankLast + Gi,
-	compress(Invariant, N, Rest, Ranki, Next);
+% This is the first call that just splits off one group as a merge candidate
+compress(Invariant, N, [Next | Rest], undefined)->
+	compress(Invariant, N, Rest, Next);
 
-compress(_, _, [], _, Last) ->
+% only one group is left
+compress(_, _, [], Last) ->
 	[Last];
 
-compress(_, _, [Next], _, Last) ->
+% we never merge the two last groups since the edge groups need to be untouched
+compress(_, _, [Next], Last) ->
 	[Last|[Next]];
 
-compress(Invariant, N, [Next = #group{g = Giplusone, delta = Deltaiplusone} | Rest], Ranki, Last = #group{g = Gi}) ->
+compress(Invariant, N, [Next = #group{g = Gi, rank = Ranki} | Rest], Last = #group{g = Giplusone, delta = Deltaiplusone}) ->
 	% 		error_logger:info_msg("Rank:~p\n", [Ranki]),
 	% error_logger:info_msg("comress ~p =< ~p \n", [(Gi + Giplusone + Deltaiplusone), Invariant(Ranki, N)]),
 	% 		error_logger:info_msg("Last:~p\n", [Last]),
 	case Gi + Giplusone + Deltaiplusone =< Invariant(Ranki, N) of
 		true ->
 			% [Last|[Next|compress(Invariant, N, Rest, Ranki + Gi, undefined)]];
-			[merge(Last, Next)|compress(Invariant, N, Rest, Ranki + Gi, undefined)];
+			[merge(Last, Next)|compress(Invariant, N, Rest, undefined)];
 		false ->
-			[Last|compress(Invariant, N, Rest, Ranki + Gi, Next)]
+			[Last|compress(Invariant, N, Rest, Next)]
 	end.
 
-merge(#group{g = Gi}, #group{g = Giplusone, v = Viplusone, delta = Deltaiplusone}) ->
+merge(#group{g = Giplusone, v = Viplusone, delta = Deltaiplusone, rank = Rankiplusone}, #group{g = Gi, rank = Ranki}) ->
+	C = Rankiplusone > Ranki,
+	error_logger:info_msg("{Rankiplusone, Ranki, C}: ~p\n", [{Rankiplusone, Ranki, C}]),
+	C = true,
 	% error_logger:info_msg("merging...GI:~p , Giplusone:~p\n", [Gi, Giplusone]),
-	#group{v = Viplusone, g = Gi + Giplusone, delta = Deltaiplusone}.
+	#group{v = Viplusone, g = Gi + Giplusone, delta = Deltaiplusone, rank = Ranki}.
 
 -spec quantile(number(), invariant(), data_structure()) -> number().
 quantile(_, _, {_, []}) ->
@@ -182,14 +190,14 @@ test_insert() ->
 	Insert = fun(Value, Data) -> insert(Value, Invariant, Data) end,
 	QE1 = Insert(13, {0, []}),
 	?assertEqual(
-		{1, [#group{v = 13, g = 1, delta = 0}]},
+		{1, [#group{v = 13, g = 1, delta = 0, rank = 1}]},
 	QE1),
 	QE2 = Insert(2, QE1),
 	?assertEqual(
 		{2,
 			[
-			#group{v = 2,  g = 1, delta = 0},
-			#group{v = 13, g = 1, delta = 0}
+			#group{v = 2,  g = 1, delta = 0, rank = 1},
+			#group{v = 13, g = 1, delta = 0, rank = 2}
 			]
 		},
 	QE2),
@@ -197,9 +205,9 @@ test_insert() ->
 	?assertEqual(
 		{3,
 			[
-			#group{v = 2,  g = 1, delta = 0},
-			#group{v = 8,  g = 1, delta = 0},
-			#group{v = 13, g = 1, delta = 0}
+			#group{v = 2,  g = 1, delta = 0, rank = 1},
+			#group{v = 8,  g = 1, delta = 0, rank = 2},
+			#group{v = 13, g = 1, delta = 0, rank = 3}
 			]
 		},
 	QE3),
@@ -207,10 +215,10 @@ test_insert() ->
 	?assertEqual(
 		{4,
 			[
-			#group{v = -3, g = 1, delta = 0},
-			#group{v = 2,  g = 1, delta = 0},
-			#group{v = 8,  g = 1, delta = 0},
-			#group{v = 13, g = 1, delta = 0}
+			#group{v = -3, g = 1, delta = 0, rank = 1},
+			#group{v = 2,  g = 1, delta = 0, rank = 2},
+			#group{v = 8,  g = 1, delta = 0, rank = 3},
+			#group{v = 13, g = 1, delta = 0, rank = 4}
 			]
 		},
 	QE4),
@@ -218,11 +226,11 @@ test_insert() ->
 	?assertEqual(
 		{5,
 			[
-			#group{v = -3, g = 1, delta = 0},
-			#group{v = 2,  g = 1, delta = 0},
-			#group{v = 8,  g = 1, delta = 0},
-			#group{v = 13, g = 1, delta = 0},
-			#group{v = 99, g = 1, delta = 0}
+			#group{v = -3, g = 1, delta = 0, rank = 1},
+			#group{v = 2,  g = 1, delta = 0, rank = 2},
+			#group{v = 8,  g = 1, delta = 0, rank = 3},
+			#group{v = 13, g = 1, delta = 0, rank = 4},
+			#group{v = 99, g = 1, delta = 0, rank = 5}
 			]
 		},
 	QE5),
@@ -230,12 +238,12 @@ test_insert() ->
 	?assertEqual(
 		{6,
 			[
-			#group{v = -3, g = 1, delta = 0},
-			#group{v = 2,  g = 1, delta = 0},
-			#group{v = 8,  g = 1, delta = 0},
-			#group{v = 13, g = 1, delta = 0},
-			#group{v = 14, g = 1, delta = 0},
-			#group{v = 99, g = 1, delta = 0}
+			#group{v = -3, g = 1, delta = 0, rank = 1},
+			#group{v = 2,  g = 1, delta = 0, rank = 2},
+			#group{v = 8,  g = 1, delta = 0, rank = 3},
+			#group{v = 13, g = 1, delta = 0, rank = 4},
+			#group{v = 14, g = 1, delta = 0, rank = 5},
+			#group{v = 99, g = 1, delta = 0, rank = 6}
 			]
 		},
 	QE6).
@@ -281,9 +289,10 @@ test_long_tail() ->
 	% Invariant = quantile_estimator:f_biased(0.001),
 	lists:foldl(
 		fun(Sample, {Stats = {_, DL}, SamplesUsed}) ->
+			error_logger:info_msg("Stats:~p\n", [Stats]),
 			StatsNew = insert(Sample, Invariant, Stats),
 			SamplesNew = [Sample|SamplesUsed],
-			io:format("StatsNew:~p\n", [StatsNew]),
+			error_logger:info_msg("StatsNew:~p\n", [StatsNew]),
 			validate(SamplesNew, Invariant, StatsNew),
 			StatsCompressed =
 			case length(SamplesUsed) rem 10 =:= 0 of
@@ -328,7 +337,9 @@ validate(Samples, Invariant, Data = {N, _}) ->
 % 	[?assert(Deviation =< AllowedDeviation)||{Deviation, AllowedDeviation} <- DeviationAllowedDeviation].
 
 compress_and_validate(Samples, Invariant, Data = {N, _}, SizeLast) ->
+	error_logger:info_msg("before compress {N, Data}: ~p\n", [Data]),
 	DataCompressed = compress(Invariant, Data),
+	error_logger:info_msg("DataCompressed: ~p\n", [DataCompressed]),
 	{{N, List}, {N, ListCompressed}} = {Data, DataCompressed},
 	error_logger:info_msg("------->reduced from :~p to: ~p\n", [length(List), length(ListCompressed)]),
 	?assert(length(ListCompressed) =< length(List)),
