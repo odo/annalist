@@ -94,8 +94,8 @@ insert(V, [Next = #group{v = Vi, g = Gi, rank = RankNext}|DataTail], N, Invarian
 		true ->
 			GroupNew = 
 			case Ranki =:= 1 of
-				true  -> #group{v = V, g = 1, delta = 0, rank = Ranki};
-				false -> #group{v = V, g = 1, delta = clamp(floor(Invariant(Ranki, N)) - 1), rank = Ranki}
+				true  -> #group{v = V, g = 1, delta = 0, rank = RankLast + 1};
+				false -> #group{v = V, g = 1, delta = clamp(floor(Invariant(Ranki, N)) - 1), rank = RankLast +1}
 			end,
 			[GroupNew|[Next#group{rank = RankNext + 1}|insert(undefined, DataTail, N, undefiend, undefined)]];
 		false ->
@@ -132,7 +132,7 @@ compress(Invariant, N, [Next = #group{g = Gi, rank = Ranki} | Rest], Last = #gro
 
 merge(#group{g = Giplusone, v = Viplusone, delta = Deltaiplusone, rank = Rankiplusone}, #group{g = Gi, rank = Ranki}) ->
 	C = Rankiplusone > Ranki,
-	error_logger:info_msg("{Rankiplusone, Ranki, C}: ~p\n", [{Rankiplusone, Ranki, C}]),
+	% error_logger:info_msg("{Rankiplusone, Ranki, C}: ~p\n", [{Rankiplusone, Ranki, C}]),
 	C = true,
 	% error_logger:info_msg("merging...GI:~p , Giplusone:~p\n", [Gi, Giplusone]),
 	#group{v = Viplusone, g = Gi + Giplusone, delta = Deltaiplusone, rank = Ranki}.
@@ -174,11 +174,11 @@ quantile_estimator_test_() ->
 	fun test_setup/0,
 	fun test_teardown/1,
 	[
-		% {"simple insert", fun test_insert/0}
-		% ,{"quantiles are working", fun test_quantile/0}
-		% ,{"quantiles are working with compression and biased quantiles", fun test_compression_biased/0}
-		% ,{"quantiles are working with compression and targeted quantiles", fun test_comression_targeted/0}
-		{"quantiles are working with long tail data set", timeout, 150, fun test_long_tail/0}
+		{"simple insert", fun test_insert/0}
+		,{"quantiles are working", fun test_quantile/0}
+		,{"quantiles are working with compression and biased quantiles", fun test_compression_biased/0}
+		,{"quantiles are working with compression and targeted quantiles", fun test_comression_targeted/0}
+		,{"quantiles are working with long tail data set", timeout, 1000, fun test_long_tail/0}
 	]}
 ].
 
@@ -289,16 +289,15 @@ test_long_tail() ->
 	% Invariant = quantile_estimator:f_biased(0.001),
 	lists:foldl(
 		fun(Sample, {Stats = {_, DL}, SamplesUsed}) ->
-			error_logger:info_msg("Stats:~p\n", [Stats]),
+			% error_logger:info_msg("Stats:~p\n", [Stats]),
 			StatsNew = insert(Sample, Invariant, Stats),
 			SamplesNew = [Sample|SamplesUsed],
-			error_logger:info_msg("StatsNew:~p\n", [StatsNew]),
+			% error_logger:info_msg("StatsNew:~p\n", [StatsNew]),
 			validate(SamplesNew, Invariant, StatsNew),
 			StatsCompressed =
 			case length(SamplesUsed) rem 10 =:= 0 of
 				true ->
 					compress_and_validate(SamplesNew, Invariant, StatsNew, length(DL));
-					% validate(SamplesNew, Invariant, StatsNew),
 					% StatsNew;
 				false ->
 					StatsNew
@@ -312,20 +311,31 @@ test_long_tail() ->
 		Samples
 	).
 
-validate(Samples, Invariant, Data = {N, _}) ->
+validate(Samples, Invariant, Data = {N, Series}) ->
 	Index = fun(Element, List) -> length(lists:takewhile(fun(E) -> E < Element end, List)) end,
 	SamplesSort = lists:sort(Samples),
+	validate_ranks(Series, 0),
 	Quantiles = [0.01, 0.05, 0.10, 0.5, 0.90, 0.95, 0.99],
-	QantileEstimateDevAlloweddev = [
+	RankestRankrealDevDevallowed = [
 		{
 			Index(quantile:quantile(Q, SamplesSort), SamplesSort), 
 			Index(quantile(Q, Invariant, Data), SamplesSort), 
 			abs(Index(quantile:quantile(Q, SamplesSort), SamplesSort) - Index(quantile(Q, Invariant, Data), SamplesSort)),
 			quantile:ceil(Invariant(Index(quantile(Q, Invariant, Data), SamplesSort), N))
 		} || Q <- Quantiles],
-	error_logger:info_msg("N:~p, QantileEstimateDevAlloweddev:~p\n", [N, QantileEstimateDevAlloweddev]),
-	[?assertEqual(true, (Dev =< DevAlloweddev)) || {_, _, Dev, DevAlloweddev} <- QantileEstimateDevAlloweddev].
+	% [error_logger:info_msg("QReal:~p,~p,~p\n", [Q, N, quantile:quantile(Q, SamplesSort)]) || Q <- [0.0, 1.0]],
+	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Data)]) || Q <- [0.0, 1.0]],
+	% [error_logger:info_msg("QReal:~p,~p,~p\n", [Q, N, quantile:quantile(Q, SamplesSort)]) || Q <- Quantiles],
+	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Data)]) || Q <- Quantiles],
+	% error_logger:info_msg("N:~p, RankestRankrealDevDevallowed:~p\n", [N, RankestRankrealDevDevallowed]),
+	[?assertEqual(true, (Dev =< DevAlloweddev)) || {_, _, Dev, DevAlloweddev} <- RankestRankrealDevDevallowed].
 			
+validate_ranks([_], _) ->
+	undefined;
+
+validate_ranks([#group{rank = Rank}|Rest], RankLast)	->
+	?assert(Rank > RankLast),
+	validate_ranks(Rest, Rank).
 % validate(Samples, Invariant, Data = {N, _}) ->
 % 	SamplesSort = lists:sort(Samples),
 % 	RankEstimate = [{R, quantile((R-1)/N, Invariant, Data)}||R<-[1, N*0.01, N*0.05, N*0.10, N*0.5, N*0.90, N*0.95, N*0.99, N]],
@@ -337,11 +347,12 @@ validate(Samples, Invariant, Data = {N, _}) ->
 % 	[?assert(Deviation =< AllowedDeviation)||{Deviation, AllowedDeviation} <- DeviationAllowedDeviation].
 
 compress_and_validate(Samples, Invariant, Data = {N, _}, SizeLast) ->
-	error_logger:info_msg("before compress {N, Data}: ~p\n", [Data]),
+	% error_logger:info_msg("before compress {N, Data}: ~p\n", [Data]),
 	DataCompressed = compress(Invariant, Data),
-	error_logger:info_msg("DataCompressed: ~p\n", [DataCompressed]),
+	% error_logger:info_msg("DataCompressed: ~p\n", [DataCompressed]),
 	{{N, List}, {N, ListCompressed}} = {Data, DataCompressed},
-	error_logger:info_msg("------->reduced from :~p to: ~p\n", [length(List), length(ListCompressed)]),
+	% error_logger:info_msg("------->reduced from :~p to: ~p\n", [length(List), length(ListCompressed)]),
+	% error_logger:info_msg("ratio: ~p,~p\n", [N, length(ListCompressed)]),
 	?assert(length(ListCompressed) =< length(List)),
 	% error_logger:info_msg("DataCompressed:~p\n", [DataCompressed]),
 	validate(Samples, Invariant, DataCompressed),

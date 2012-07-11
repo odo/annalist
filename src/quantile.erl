@@ -14,6 +14,12 @@
 -export([rank_average/2]).
 
 -spec quantile(float(), samples()) -> sample().
+quantile(0.0, [First|_]) ->
+	First;
+
+quantile(1.0, Samples) ->
+	lists:last(Samples);
+	
 quantile(Quantile, Samples) ->
 	case ranks(length(Samples), Quantile) of
 		[Index] ->
