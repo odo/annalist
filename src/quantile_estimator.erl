@@ -23,20 +23,11 @@
 
 -include("quantile_estimator.hrl").
 
+% -record (group, {v :: number(), g :: number(), delta :: number(), rank :: number()}).
+% -record (quantile_estimator, {samples_count :: number(), inserts_since_compression :: number(), data :: [#group{}]})
+
 -type data_sample() :: number().
--type data_structure() :: {number(), [#group{}]}.
 -type invariant() :: fun((number(), number()) -> number()).
-
-% group composition:
-% 		t i 	 				t i+1 			t i+2
-% |min i 		max i||min i+1	  max i+1||min i+2 	  max i+2|
-% |__________________||__________________||__________________|
-% |-----delta i--------|
-%                   |-----delta i+1--------|
-%                                       |-----delta i+2--------|
-% |----------g i+1--|
-% 					|----------g i+2----|
-
 	
 -spec f_biased(number()) -> invariant().
 f_biased(Epsilon) ->
@@ -62,13 +53,18 @@ f_targeted(Phi, Epsilon) ->
 		end
 	end.
 
--spec new() -> data_structure().
+-spec new() -> #quantile_estimator{}.
 new() ->
-	{0, []}.
+	#quantile_estimator{samples_count = 0, inserts_since_compression = 0, data_count = 0, data = []}.
 
--spec insert(data_sample(), invariant(), data_structure()) -> data_structure().
-insert(V, Invariant, {N, Data}) ->
-	{N + 1, insert(V, Data, N, Invariant, 0)}.
+-spec insert(data_sample(), invariant(), #quantile_estimator{}) -> #quantile_estimator{}.
+insert(V, Invariant, #quantile_estimator{samples_count = SamplesCount, inserts_since_compression = InsertsSinceCompression, data_count = DataCount, data = Data}) ->
+	#quantile_estimator{
+		samples_count = SamplesCount + 1,
+		inserts_since_compression = InsertsSinceCompression + 1,
+		data_count = DataCount + 1,
+		data = insert(V, Data, SamplesCount, Invariant, 0)
+	}.
 
 % we terminate and the group has been added
 insert(undefined, [], _N, _Invariant, _Rank) ->
@@ -102,9 +98,15 @@ insert(V, [Next = #group{v = Vi, g = Gi, rank = RankNext}|DataTail], N, Invarian
 			[Next|insert(V, DataTail, N, Invariant, Ranki)]
 	end.
 
--spec compress(invariant(), data_structure()) -> data_structure().
-compress(Invariant, {N, Data}) ->
-	{N, lists:reverse(compress(Invariant, N, lists:reverse(Data), undefined))}.
+-spec compress(invariant(), #quantile_estimator{}) -> #quantile_estimator{}.
+compress(Invariant, #quantile_estimator{samples_count = N, data = Data}) ->
+	DataCompressed = lists:reverse(compress(Invariant, N, lists:reverse(Data), undefined)),
+	#quantile_estimator{
+		samples_count = N,
+		inserts_since_compression = 0,
+		data_count = length(DataCompressed),
+		data = DataCompressed
+	}.
 
 % This is the first call that just splits off one group as a merge candidate
 compress(Invariant, N, [Next | Rest], undefined)->
@@ -137,11 +139,11 @@ merge(#group{g = Giplusone, v = Viplusone, delta = Deltaiplusone, rank = Rankipl
 	% error_logger:info_msg("merging...GI:~p , Giplusone:~p\n", [Gi, Giplusone]),
 	#group{v = Viplusone, g = Gi + Giplusone, delta = Deltaiplusone, rank = Ranki}.
 
--spec quantile(number(), invariant(), data_structure()) -> number().
-quantile(_, _, {_, []}) ->
+-spec quantile(number(), invariant(), #quantile_estimator{}) -> number().
+quantile(_, _, #quantile_estimator{data = []}) ->
 	throw({error, empty_stats});
 
-quantile(Phi, Invariant, {N, [First|DataStructure]}) ->
+quantile(Phi, Invariant, #quantile_estimator{samples_count = N, data = [First|DataStructure]}) ->
 	quantile(Phi, Invariant, DataStructure, N, 0, First).
 
 quantile(_, _, [], _, _, #group{v = Vlast}) ->
@@ -178,53 +180,64 @@ quantile_estimator_test_() ->
 		,{"quantiles are working", fun test_quantile/0}
 		,{"quantiles are working with compression and biased quantiles", fun test_compression_biased/0}
 		,{"quantiles are working with compression and targeted quantiles", fun test_comression_targeted/0}
-		,{"quantiles are working with long tail data set", timeout, 1000, fun test_long_tail/0}
+		% ,{"quantiles are working with long tail data set", timeout, 1000, fun test_long_tail/0}
 	]}
 ].
 
 test_setup() -> nothing.
 test_teardown(_) -> nothing.
 
+qe(SamplesCount, Data) ->
+	qe(SamplesCount, SamplesCount, Data).
+
+qe(SamplesCount, InsertsSinceCompression, Data) ->
+	#quantile_estimator{
+		samples_count = SamplesCount,
+		inserts_since_compression = InsertsSinceCompression,
+		data_count = length(Data),
+		data = Data
+	}.
+
 test_insert() ->
 	Invariant = f_biased(0.001),
 	Insert = fun(Value, Data) -> insert(Value, Invariant, Data) end,
-	QE1 = Insert(13, {0, []}),
+	QE1 = Insert(13, quantile_estimator:new()),
 	?assertEqual(
-		{1, [#group{v = 13, g = 1, delta = 0, rank = 1}]},
+		qe(1, [#group{v = 13, g = 1, delta = 0, rank = 1}]),
 	QE1),
 	QE2 = Insert(2, QE1),
 	?assertEqual(
-		{2,
+		qe(2,
 			[
 			#group{v = 2,  g = 1, delta = 0, rank = 1},
 			#group{v = 13, g = 1, delta = 0, rank = 2}
 			]
-		},
+		),
 	QE2),
 	QE3 = Insert(8, QE2),
 	?assertEqual(
-		{3,
+		qe(3,
 			[
 			#group{v = 2,  g = 1, delta = 0, rank = 1},
 			#group{v = 8,  g = 1, delta = 0, rank = 2},
 			#group{v = 13, g = 1, delta = 0, rank = 3}
 			]
-		},
+		),
 	QE3),
 	QE4 = Insert(-3, QE3),
 	?assertEqual(
-		{4,
+		qe(4,
 			[
 			#group{v = -3, g = 1, delta = 0, rank = 1},
 			#group{v = 2,  g = 1, delta = 0, rank = 2},
 			#group{v = 8,  g = 1, delta = 0, rank = 3},
 			#group{v = 13, g = 1, delta = 0, rank = 4}
 			]
-		},
+		),
 	QE4),
 	QE5 = Insert(99, QE4),
 	?assertEqual(
-		{5,
+		qe(5,
 			[
 			#group{v = -3, g = 1, delta = 0, rank = 1},
 			#group{v = 2,  g = 1, delta = 0, rank = 2},
@@ -232,11 +245,11 @@ test_insert() ->
 			#group{v = 13, g = 1, delta = 0, rank = 4},
 			#group{v = 99, g = 1, delta = 0, rank = 5}
 			]
-		},
+		),
 	QE5),
 	QE6 = Insert(14, QE5),
 	?assertEqual(
-		{6,
+		qe(6,
 			[
 			#group{v = -3, g = 1, delta = 0, rank = 1},
 			#group{v = 2,  g = 1, delta = 0, rank = 2},
@@ -245,7 +258,7 @@ test_insert() ->
 			#group{v = 14, g = 1, delta = 0, rank = 5},
 			#group{v = 99, g = 1, delta = 0, rank = 6}
 			]
-		},
+		),
 	QE6).
 
 test_quantile() ->
@@ -253,11 +266,11 @@ test_quantile() ->
 	Invariant = f_biased(0.001),
 	N = 1000,
 	Samples = [random:uniform()||_ <- lists:seq(1, N)],
-	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, {0, []}, Samples),
+	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, quantile_estimator:new(), Samples),
 	% error_logger:info_msg("D:~p\n", [D]),
 	validate(Samples, Invariant, Data),
 	Samples2 = [5],
-	Data2 = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, {0, []}, Samples2),
+	Data2 = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, quantile_estimator:new(), Samples2),
 	?assertEqual(5, quantile(0, Invariant, Data2)),
 	?assertEqual(5, quantile(1, Invariant, Data2)),
 	?assertEqual(5, quantile(0.99, Invariant, Data2)).
@@ -268,8 +281,8 @@ test_compression_biased() ->
 	Invariant = f_biased(0.01),
 	N = 2000,
 	Samples = [random:uniform()||_ <- lists:seq(1, N)],
-	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, {0, []}, Samples),
-	{_, DL} = Data,
+	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, quantile_estimator:new(), Samples),
+	DL = Data#quantile_estimator.data,
 	validate(Samples, Invariant, Data),
 	compress_and_validate(Samples, Invariant, Data, length(DL)).
 
@@ -278,8 +291,8 @@ test_comression_targeted() ->
 	Invariant = quantile_estimator:f_targeted([{0.05, 0.005}, {0.5, 0.02}, {0.95, 0.005}]),
 	N = 2000,
 	Samples = [random:uniform()||_ <- lists:seq(1, N)],
-	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, {0, []}, Samples),
-	{_, DL} = Data,
+	Data = lists:foldl(fun(Sample, Stats) -> insert(Sample, Invariant, Stats) end, quantile_estimator:new(), Samples),
+	DL = Data#quantile_estimator.data,
 	validate(Samples, Invariant, Data),
 	compress_and_validate(Samples, Invariant, Data, length(DL)).
 
@@ -288,7 +301,7 @@ test_long_tail() ->
 	Invariant = quantile_estimator:f_targeted([{0.01, 0.005}, {0.05, 0.005}, {0.5, 0.025}, {0.95, 0.005}, {0.99, 0.005}]),
 	% Invariant = quantile_estimator:f_biased(0.001),
 	lists:foldl(
-		fun(Sample, {Stats = {_, DL}, SamplesUsed}) ->
+		fun(Sample, {Stats = #quantile_estimator{data = DL}, SamplesUsed}) ->
 			% error_logger:info_msg("Stats:~p\n", [Stats]),
 			StatsNew = insert(Sample, Invariant, Stats),
 			SamplesNew = [Sample|SamplesUsed],
@@ -302,16 +315,13 @@ test_long_tail() ->
 				false ->
 					StatsNew
 			end,
-			% StatsNewCompress = compress(Invariant, StatsNew),
-			% validate(Samples, Invariant, StatsNewCompress),
-			% StatsNewCompress
 			{StatsCompressed, SamplesNew}
 		end,
-		{{0, []}, []},
+		{quantile_estimator:new(), []},
 		Samples
 	).
 
-validate(Samples, Invariant, Data = {N, Series}) ->
+validate(Samples, Invariant, Estimate = #quantile_estimator{samples_count = N, data = Series}) ->
 	Index = fun(Element, List) -> length(lists:takewhile(fun(E) -> E < Element end, List)) end,
 	SamplesSort = lists:sort(Samples),
 	validate_ranks(Series, 0),
@@ -319,14 +329,14 @@ validate(Samples, Invariant, Data = {N, Series}) ->
 	RankestRankrealDevDevallowed = [
 		{
 			Index(quantile:quantile(Q, SamplesSort), SamplesSort), 
-			Index(quantile(Q, Invariant, Data), SamplesSort), 
-			abs(Index(quantile:quantile(Q, SamplesSort), SamplesSort) - Index(quantile(Q, Invariant, Data), SamplesSort)),
-			quantile:ceil(Invariant(Index(quantile(Q, Invariant, Data), SamplesSort), N))
+			Index(quantile(Q, Invariant, Estimate), SamplesSort), 
+			abs(Index(quantile:quantile(Q, SamplesSort), SamplesSort) - Index(quantile(Q, Invariant, Estimate), SamplesSort)),
+			quantile:ceil(Invariant(Index(quantile(Q, Invariant, Estimate), SamplesSort), N))
 		} || Q <- Quantiles],
 	% [error_logger:info_msg("QReal:~p,~p,~p\n", [Q, N, quantile:quantile(Q, SamplesSort)]) || Q <- [0.0, 1.0]],
-	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Data)]) || Q <- [0.0, 1.0]],
+	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Estimate)]) || Q <- [0.0, 1.0]],
 	% [error_logger:info_msg("QReal:~p,~p,~p\n", [Q, N, quantile:quantile(Q, SamplesSort)]) || Q <- Quantiles],
-	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Data)]) || Q <- Quantiles],
+	% [error_logger:info_msg("QEst:~p,~p,~p\n", [Q, N, quantile(Q, Invariant, Estimate)]) || Q <- Quantiles],
 	% error_logger:info_msg("N:~p, RankestRankrealDevDevallowed:~p\n", [N, RankestRankrealDevDevallowed]),
 	[?assertEqual(true, (Dev =< DevAlloweddev)) || {_, _, Dev, DevAlloweddev} <- RankestRankrealDevDevallowed].
 			
@@ -346,21 +356,23 @@ validate_ranks([#group{rank = Rank}|Rest], RankLast)	->
 % 	error_logger:info_msg("DeviationAllowedDeviation:~p\n", [DeviationAllowedDeviation]),
 % 	[?assert(Deviation =< AllowedDeviation)||{Deviation, AllowedDeviation} <- DeviationAllowedDeviation].
 
-compress_and_validate(Samples, Invariant, Data = {N, _}, SizeLast) ->
+compress_and_validate(Samples, Invariant, Est, SizeLast) ->
 	% error_logger:info_msg("before compress {N, Data}: ~p\n", [Data]),
-	DataCompressed = compress(Invariant, Data),
+	EstCompressed = compress(Invariant, Est),
 	% error_logger:info_msg("DataCompressed: ~p\n", [DataCompressed]),
-	{{N, List}, {N, ListCompressed}} = {Data, DataCompressed},
+	?assertEqual(Est#quantile_estimator.samples_count, EstCompressed#quantile_estimator.samples_count),
+	?assertEqual(0, EstCompressed#quantile_estimator.inserts_since_compression),
 	% error_logger:info_msg("------->reduced from :~p to: ~p\n", [length(List), length(ListCompressed)]),
 	% error_logger:info_msg("ratio: ~p,~p\n", [N, length(ListCompressed)]),
-	?assert(length(ListCompressed) =< length(List)),
+	?assert(length(EstCompressed#quantile_estimator.data) =< length(Est#quantile_estimator.data)),
+	?assertEqual(length(EstCompressed#quantile_estimator.data), EstCompressed#quantile_estimator.data_count),
 	% error_logger:info_msg("DataCompressed:~p\n", [DataCompressed]),
-	validate(Samples, Invariant, DataCompressed),
-	case length(ListCompressed) < SizeLast of
+	validate(Samples, Invariant, EstCompressed),
+	case length(EstCompressed#quantile_estimator.data) < SizeLast of
 		true ->
-			compress_and_validate(Samples, Invariant, DataCompressed, length(ListCompressed));
+			compress_and_validate(Samples, Invariant, EstCompressed, length(EstCompressed#quantile_estimator.data));
 		false ->
-			DataCompressed
+			EstCompressed
 	end.
 
 -endif.

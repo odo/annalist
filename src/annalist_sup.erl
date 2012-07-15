@@ -22,6 +22,14 @@ start_link(ElevelDBDir) ->
 
 -spec init([list()]) -> {ok, {tuple(), [tuple()]}}.
 init([ElevelDBDir]) ->
-	AnnalistServer = {annalist, {annalist, start_link, [ElevelDBDir]},
-		permanent, 1000, worker, [annalist, uplevel, eleveldb]},
-    {ok, { {one_for_one, 5, 10}, [AnnalistServer]} }.
+	Handle = uplevel:handle(ElevelDBDir),
+	AnnalistAPIServer =
+		{annalist_api_server, {annalist_api_server, start_link, [Handle]},
+			permanent, 1000, worker, [annalist, uplevel, eleveldb]},
+	AnnalistCounterServer =
+		{annalist_counter_server, {annalist_counter_server, start_link, [Handle]},
+			permanent, 1000, worker, [annalist, cpunter, uplevel, eleveldb]},
+	AnnalistRecorderServer =
+		{annalist_recorder_server, {annalist_recorder_server, start_link, [Handle]},
+			permanent, 1000, worker, [annalist, cpunter, uplevel, eleveldb]},
+    {ok, { {one_for_one, 5, 10}, [AnnalistAPIServer, AnnalistCounterServer, AnnalistRecorderServer]} }.

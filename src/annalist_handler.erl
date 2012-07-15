@@ -24,20 +24,20 @@ handle(Req, State) ->
 	Counts =
 	case Context of
 		year ->
-			annalist:counts(Tags, Context, 
+			annalist_api_server:counts(Tags, Context, 
 				{
 					binary_to_integer(Year)
 				}
 				, Count);
 		month ->
-			annalist:counts(Tags, Context, 
+			annalist_api_server:counts(Tags, Context, 
 				{
 					binary_to_integer(Year),
 					binary_to_integer(Month)
 				}
 				, Count);
 		day ->
-			annalist:counts(Tags, Context, 
+			annalist_api_server:counts(Tags, Context, 
 				{
 					binary_to_integer(Year),
 					binary_to_integer(Month),
@@ -45,7 +45,7 @@ handle(Req, State) ->
 				}
 				, Count);
 		hour ->
-			annalist:counts(Tags, Context, 
+			annalist_api_server:counts(Tags, Context, 
 				{
 					binary_to_integer(Year),
 					binary_to_integer(Month),
@@ -54,7 +54,7 @@ handle(Req, State) ->
 				}
 				, Count);
 		minute ->
-			annalist:counts(Tags, Context, 
+			annalist_api_server:counts(Tags, Context, 
 				{
 					binary_to_integer(Year),
 					binary_to_integer(Month),
@@ -64,7 +64,7 @@ handle(Req, State) ->
 				}
 				, Count);
 		second ->
-			annalist:counts(Tags, second, 
+			annalist_api_server:counts(Tags, second, 
 				{
 					binary_to_integer(Year),
 					binary_to_integer(Month),
