@@ -8,16 +8,22 @@
 -endif.
 
 -export([
-	start/5
+	start/0
+	, start/7
 	, stop/0
 ]).
 
-start(LevelDBDir, Host, Port, OutsidePort, Password) ->
+start(LevelDBDir, Host, Port, OutsidePort, Password, CompressThreshold, CompressFrequency) ->
 	application:set_env(annalist, level_db_dir, LevelDBDir),
 	application:set_env(annalist, host, 		Host),
 	application:set_env(annalist, port, 		Port),
 	application:set_env(annalist, outside_port, OutsidePort),
 	application:set_env(annalist, password, 	Password),
+	application:set_env(annalist, compress_threshold, 	CompressThreshold),
+	application:set_env(annalist, compress_frequency, 	CompressFrequency),
+	application:start(annalist).
+
+start() ->
 	application:start(annalist).
 
 stop() ->
@@ -46,7 +52,7 @@ store_test_() ->
 test_setup() ->
 	random:seed(now()),
 	os:cmd("rm -rf " ++ ?TESTDB),
-	start(?TESTDB, ?TESTHOST, ?TESTPORT, ?TESTPORT, undefined).
+	start(?TESTDB, ?TESTHOST, ?TESTPORT, ?TESTPORT, undefined, 100, 100).
 
 test_teardown(_) ->
 	stop().

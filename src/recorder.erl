@@ -34,7 +34,7 @@ record_tag_value(Value, Tags, Time, Scope, DBHandle, CompressThreshold, Compress
 	case uplevel:get(Bucket, Key, DBHandle, []) of
 		not_found ->
 			quantile_estimator:new();
-		EstimateRead ->
+		{_Key, EstimateRead} ->
 			EstimateRead
 	end,
 	EstimateUpdated = quantile_estimator:insert(Value, ?INVARIANT, Estimate),

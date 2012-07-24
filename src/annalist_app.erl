@@ -14,6 +14,8 @@ start(_StartType, _StartArgs) ->
 	Port = 			env_or_throw(port),
 	_Host = 		env_or_throw(host),
 	_OutsidePort = 	env_or_throw(outside_port),
+	CompressThreshold = 	env_or_throw(compress_threshold),
+	CompressFrequency = 	env_or_throw(compress_frequency),
 	% start http interface
 	application:start(cowboy),
 	Dispatch = [
@@ -35,7 +37,7 @@ start(_StartType, _StartArgs) ->
 	    cowboy_http_protocol, [{dispatch, Dispatch}]
 	),
 	application:start(sasl),
-	annalist_sup:start_link(LevelDBDir).
+	annalist_sup:start_link(LevelDBDir, CompressThreshold, CompressFrequency).
 
 
 stop(_State) ->

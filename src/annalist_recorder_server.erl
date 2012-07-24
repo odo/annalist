@@ -3,7 +3,7 @@
 -define (SERVER, ?MODULE).
 
 -behaviour (gen_server).
--record (state, {handle}).
+-record (state, {handle, compress_threshold, compress_frequency}).
 
 -export([
 	queue_length/0
@@ -17,7 +17,7 @@
 -type time() :: {integer(), integer(), integer(), integer(), integer(), integer()}.
 
 % callbacks
--export ([init/1, stop/0, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, start_link/1]).
+-export ([init/1, stop/0, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, start_link/3]).
 
 % API
 
@@ -25,9 +25,9 @@ queue_length() ->
 	{_, Length}  = erlang:process_info(whereis(?SERVER), message_queue_len),
 	Length.
 
--spec start_link(list()) -> [{ok, pid()}].
-start_link(ElevelDBHandle) ->
-	gen_server:start_link({local, ?SERVER}, ?MODULE, [ElevelDBHandle], []).
+-spec start_link(list(), integer(), integer()) -> [{ok, pid()}].
+start_link(ElevelDBHandle, CompressThreshold, CompressFrequency) ->
+	gen_server:start_link({local, ?SERVER}, ?MODULE, [ElevelDBHandle, CompressThreshold, CompressFrequency], []).
 	
 stop() ->
 	gen_server:call(?SERVER, {stop}).
@@ -68,21 +68,21 @@ record_sparse(Tags, Value, Time = {{_, _, _}, {_, _, _}}, SparsenessFactor) ->
 
 % gen_server callbacks
 
-init([ElevelDBHandle]) ->
-	{ok, #state{handle = ElevelDBHandle}}.
+init([ElevelDBHandle, CompressThreshold, CompressFrequency]) ->
+	{ok, #state{handle = ElevelDBHandle, compress_threshold = CompressThreshold, compress_frequency = CompressFrequency}}.
 
 handle_call({beacon}, _From, State) ->
 	{reply, ok, State};
 
 handle_call({record, Tags, Value, Time}, _From, State) ->
-	Res = recorder:record(Value, Tags, Value, Time, State#state.handle),
+	Res = recorder:record(Value, Tags, Time, State#state.handle, State#state.compress_threshold, State#state.compress_frequency),
 	{reply, Res, State};
 
 handle_call({stop}, _From, State) ->
   {stop, normal, stopped, State}.
 
 handle_cast({record, Tags, Value, Time}, State) ->
-	recorder:record(Value, Tags, Time, State#state.handle),
+	recorder:record(Value, Tags, Time, State#state.handle, State#state.compress_threshold, State#state.compress_frequency),
 	{noreply, State}.
 
 handle_info(_Info, State) ->
