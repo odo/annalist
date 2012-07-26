@@ -70,10 +70,10 @@ test_counting() ->
 		{<<"total">>, {}}
 	],
 	Keys = [annalist_utils:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>				]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>						]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual(not_found, uplevel:get(annalist_utils:encode_bucket([<<"two">>, <<"three">>			]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>				]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>						]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual(not_found, uplevel:get(annalist_utils:encode_count_bucket([<<"two">>, <<"three">>			]), Key, Handle, [])) || Key <- Keys].
 
 test_sparse_counting() ->
 	Handle = annalist_api_server:leveldb_handle(),
@@ -98,7 +98,7 @@ test_sparse_counting() ->
 	Keys = [annalist_utils:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
 	lists:map(
 		fun(Key) ->
-			{Key, SamplesRec} = uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, []), 
+			{Key, SamplesRec} = uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>, <<"three">>]), Key, Handle, []), 
 			?assert(SamplesRec + SamplesRec * 0.1 > Samples), 
 			?assert(SamplesRec - SamplesRec * 0.1 < Samples) 
 		end,
@@ -119,9 +119,9 @@ test_counting_time_combi() ->
 		{<<"hour">>,   {2012, 2, 6, 18}}
 	],
 	KeysSingle = [annalist_utils:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesSingle],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysSingle],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysSingle],
 	% should be recorded double
 	ScopeTimesDouble = [
 		{<<"day">>,   {2012, 2, 6}},
@@ -130,9 +130,9 @@ test_counting_time_combi() ->
 		{<<"total">>, {}}
 	],
 	KeysDouble = [annalist_utils:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimesDouble],
-	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
-	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysDouble].
+	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>]), Key, Handle, [])) || Key <- KeysDouble],
+	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>	 ]), Key, Handle, [])) || Key <- KeysDouble].
 
 test_counting_tag_combi() ->
 	Handle = annalist_api_server:leveldb_handle(),
@@ -148,10 +148,10 @@ test_counting_tag_combi() ->
 		{<<"total">>,  {}}
 	],
 	Keys = [annalist_utils:encode_key(Scope, Time) || {Scope, Time} <- ScopeTimes],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>, <<"three1">>]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>, <<"three2">>]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_bucket([<<"one">>, <<"two">>		]), Key, Handle, [])) || Key <- Keys],
-	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_bucket([<<"one">>			]), Key, Handle, [])) || Key <- Keys].
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>, <<"three1">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 1}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>, <<"three2">>]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>, <<"two">>		]), Key, Handle, [])) || Key <- Keys],
+	[?assertEqual({Key, 2}, uplevel:get(annalist_utils:encode_count_bucket([<<"one">>			]), Key, Handle, [])) || Key <- Keys].
 			
 test_counts() ->
 	annalist_counter_server:count_sync([<<"one">>, <<"two">>, <<"three">>], {{2012,2,6},{17,22,5}}),

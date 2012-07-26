@@ -1,4 +1,7 @@
-all: deps compile
+all: deps compile_all
+
+compile_all:
+	rebar compile
 
 compile:
 	rebar compile skip_deps=true

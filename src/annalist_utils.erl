@@ -1,7 +1,8 @@
 -module(annalist_utils).
 
 -export([
-	encode_bucket/1
+	  encode_count_bucket/1
+	, encode_record_bucket/1
 	, encode_time/1
 	, decode_time/1
 	, encode_key/2
@@ -11,8 +12,11 @@
 
 -define(KEYSEPARATOR, <<"/$annalist_keysep">>).
 
-encode_bucket(Tags) ->
-	encode_bucket(Tags, <<>>).
+encode_count_bucket(Tags) ->
+	encode_bucket(Tags, <<"$annalist_counts">>).
+
+encode_record_bucket(Tags) ->
+	encode_bucket(Tags, <<"$annalist_records">>).
 
 encode_bucket([], TagsBinary) ->
 	TagsBinary;
