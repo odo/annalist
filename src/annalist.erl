@@ -13,6 +13,15 @@
 	, stop/0
 ]).
 
+-export([
+	count/1, count/2
+	, count_sync/1, count_sync/2
+	, count_sparse/2, count_sparse/3
+]).
+
+-type tags() :: [binary()].
+-type time() :: {integer(), integer(), integer(), integer(), integer(), integer()}.
+
 start(LevelDBDir, Host, Port, OutsidePort, Password, CompressThreshold, CompressFrequency) ->
 	application:set_env(annalist, level_db_dir, LevelDBDir),
 	application:set_env(annalist, host, 		Host),
@@ -29,6 +38,35 @@ start() ->
 stop() ->
 	application:stop(annalist).
 
+
+%% ===================================================================
+%% Counter API
+%% ===================================================================
+
+% count
+-spec count_sync(tags()) -> ok.
+count_sync(Tags) ->
+	annalist_counter_server:count_sync(Tags).
+
+-spec count_sync(tags(), time()) -> ok.
+count_sync(Tags, Time = {{_, _, _}, {_, _, _}}) ->
+	annalist_counter_server:count_sync(Tags, Time).
+
+-spec count(tags()) -> ok.
+count(Tags) ->
+	annalist_counter_server:count(Tags).
+
+-spec count(tags(), time()) -> ok.
+count(Tags, Time = {{_, _, _}, {_, _, _}}) ->
+	annalist_counter_server:count(Tags, Time).
+
+-spec count_sparse(tags(), non_neg_integer()) -> ok.
+count_sparse(Tags, SparsenessFactor) ->
+	annalist_counter_server:count_sparse(Tags, SparsenessFactor).
+
+-spec count_sparse(tags(), time(), non_neg_integer()) -> ok.
+count_sparse(Tags, Time = {{_, _, _}, {_, _, _}}, SparsenessFactor) ->
+	annalist_counter_server:count_sparse(Tags, Time, SparsenessFactor).
 
 %% ===================================================================
 %% EUnit tests
