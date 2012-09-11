@@ -23,7 +23,7 @@ start(_StartType, _StartArgs) ->
     {'_', [
     		{[<<"annalist">>, <<"sparks">>], 		sparks_handler, []},
     		{[<<"annalist">>, <<"dashboard">>], 	dashboard_handler, []},
-    		{[<<"annalist">>, <<"totals">> 			], 														annalist_handler, [{context, total}]},
+    		{[<<"annalist">>, <<"totals">>, 		tags], 														annalist_handler, [{context, total}]},
     		{[<<"annalist">>, <<"year_counts">>, 	tags, year, count], 									annalist_handler, [{context, year}]},
 		    {[<<"annalist">>, <<"month_counts">>, 	tags, year, month, count], 								annalist_handler, [{context, month}]},
 		    {[<<"annalist">>, <<"day_counts">>, 	tags, year, month, day, count], 						annalist_handler, [{context, day}]},

@@ -92,5 +92,8 @@ handle(Req, State) ->
 terminate(_Req, _State) ->
     ok.
 
+binary_to_integer(undefined) ->
+	undefined;
+
 binary_to_integer(Binary) ->
 	list_to_integer(binary_to_list(Binary)).

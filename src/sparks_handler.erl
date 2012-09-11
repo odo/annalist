@@ -73,13 +73,20 @@ page_string() ->
         ItemCount;
         
         var Class = 'chart_' + Index;
+        var TotalID = 'total_' + Index;
         Nesting = TagPrint.split('/').length
-        Html = '<div style=\"clear: left\"><span class=\"label'+ Nesting + '\"><a href=\"http://' + Host + ':' + Port + '/annalist/dashboard?tag=' + Tag + '\">' + TagPrint + '</a></span><span class=\"' + Class + '\">___________________________</span></div>';
+        Html = '<div style=\"clear: left\"><span class=\"label'+ Nesting + '\"><a href=\"http://' + Host + ':' + Port + '/annalist/dashboard?tag=' + Tag + '\">' + TagPrint + ' (<span id=\"' + TotalID + '\"></span>)</a></span><span class=\"' + Class + '\">___________________________</span></div>';
         $('#sparks').append(Html);
         $.getJSON( URL + '?callback=?', function(data) {
             // Create the chart
             $('.' + Class).sparkline(data, {fillColor: 'white', lineColor: 'gray'});
-        })
+        });
+        var URLTotal = 'http://' + Host + ':' + Port + '/annalist/totals/' + Tag
+        $.getJSON( URLTotal + '?callback=?', function(data) {
+            console.log($('#' + TotalID));
+            console.log(data + '');
+            $('#' + TotalID).append('total: ' + data);
+        });
     };
 
     $(function() {
