@@ -23,6 +23,8 @@ handle(Req, State) ->
 	{Second, _} = cowboy_http_req:binding(second, Req),
 	Counts =
 	case Context of
+		total ->
+			annalist_api_server:counts(Tags, Context);
 		year ->
 			annalist_api_server:counts(Tags, Context, 
 				{
