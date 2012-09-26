@@ -17,6 +17,7 @@ start(_StartType, _StartArgs) ->
 	CompressThreshold = 	env_or_throw(compress_threshold),
 	CompressFrequency = 	env_or_throw(compress_frequency),
 	% start http interface
+	application:start(ranch),
 	application:start(cowboy),
 	Dispatch = [
     %% {Host, list({Path, Handler, Opts})}
@@ -32,11 +33,8 @@ start(_StartType, _StartArgs) ->
 		    {[<<"annalist">>, <<"second_counts">>, 	tags, year, month, day, hour, minute, second, count],	annalist_handler, [{context, second}]}
 		]}
 	],
-	%% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
-	cowboy:start_listener(annalist_listener, 100,
-	    cowboy_tcp_transport, [{port, Port}],
-	    cowboy_http_protocol, [{dispatch, Dispatch}]
-	),
+	%% Name, NbAcceptors, TransOpts, ProtoOpts
+	cowboy:start_http(annalist_listener, 100, [{port, Port}], [{dispatch, Dispatch}]),
 	application:start(sasl),
 	annalist_sup:start_link(LevelDBDir, CompressThreshold, CompressFrequency).
 

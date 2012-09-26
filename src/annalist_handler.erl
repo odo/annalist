@@ -8,19 +8,19 @@ init({tcp, http}, Req, Opts) ->
     {ok, Req, #state{context = Context}}.
 
 handle(Req, State) ->
-	{CallbackRaw, _} = cowboy_http_req:qs_val(<<"callback">>, Req), 
+	{CallbackRaw, _} = cowboy_req:qs_val(<<"callback">>, Req), 
 	Callback = binary_to_list(CallbackRaw), 
 	Context = State#state.context,
-	{CountRaw, _} = cowboy_http_req:binding(count, Req),
+	{CountRaw, _} = cowboy_req:binding(count, Req),
 	Count = binary_to_integer(CountRaw),
-	{TagsRaw, _} = cowboy_http_req:binding(tags, Req),
+	{TagsRaw, _} = cowboy_req:binding(tags, Req),
 	Tags = [T || T <- binary:split(TagsRaw, <<" ">>)],
-	{Year, _} 	= cowboy_http_req:binding(year, Req),
-	{Month, _} 	= cowboy_http_req:binding(month, Req),
-	{Day, _} 	= cowboy_http_req:binding(day, Req),
-	{Hour, _} 	= cowboy_http_req:binding(hour, Req),
-	{Minute, _} = cowboy_http_req:binding(minute, Req),
-	{Second, _} = cowboy_http_req:binding(second, Req),
+	{Year, _} 	= cowboy_req:binding(year, Req),
+	{Month, _} 	= cowboy_req:binding(month, Req),
+	{Day, _} 	= cowboy_req:binding(day, Req),
+	{Hour, _} 	= cowboy_req:binding(hour, Req),
+	{Minute, _} = cowboy_req:binding(minute, Req),
+	{Second, _} = cowboy_req:binding(second, Req),
 	Counts =
 	case Context of
 		total ->
@@ -85,8 +85,8 @@ handle(Req, State) ->
 		undefined -> 	"application/json";
 		_ -> 			"application/javascript"
 	end,
-    {ok, Req2} = cowboy_http_req:set_resp_header('Content-Type', ContentType, Req),
-    {ok, Req3} = cowboy_http_req:reply(200, [], JSON, Req2),
+    Req2 = cowboy_req:set_resp_header('Content-Type', ContentType, Req),
+    Req3 = cowboy_req:reply(200, [], JSON, Req2),
     {ok, Req3, State}.
 
 terminate(_Req, _State) ->
