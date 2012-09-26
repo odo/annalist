@@ -82,11 +82,11 @@ handle(Req, State) ->
 	JSON = json:to_binary(Counts, Callback),
 	ContentType =
 	case Callback of
-		undefined -> 	"application/json";
-		_ -> 			"application/javascript"
+		undefined -> 	<<"application/json">>;
+		_ -> 			<<"application/javascript">>
 	end,
-    Req2 = cowboy_req:set_resp_header('Content-Type', ContentType, Req),
-    Req3 = cowboy_req:reply(200, [], JSON, Req2),
+    Req2 = cowboy_req:set_resp_header(<<"Content-Type">>, ContentType, Req),
+    {ok, Req3} = cowboy_req:reply(200, [], JSON, Req2),
     {ok, Req3, State}.
 
 terminate(_Req, _State) ->
