@@ -9,7 +9,13 @@ init({tcp, http}, Req, Opts) ->
 
 handle(Req, State) ->
 	{CallbackRaw, _} = cowboy_req:qs_val(<<"callback">>, Req), 
-	Callback = binary_to_list(CallbackRaw), 
+	Callback =
+	case CallbackRaw of
+		undefined ->
+			undefined;
+		_ ->
+			binary_to_list(CallbackRaw)
+	end, 
 	Context = State#state.context,
 	{CountRaw, _} = cowboy_req:binding(count, Req),
 	Count = binary_to_integer(CountRaw),
