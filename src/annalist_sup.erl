@@ -20,7 +20,7 @@ start_link(ElevelDBDir, CompressThreshold, CompressFrequency) ->
 %% Supervisor callbacks
 %% ===================================================================
 
--spec init([list()]) -> {ok, {tuple(), [tuple()]}}.
+-spec init([list()]) -> {ok, {{'one_for_one', non_neg_integer(), non_neg_integer()}, [{_,{atom() ,atom(), [any()]},'permanent',non_neg_integer() ,'worker', [atom()]}]}}.
 init([ElevelDBDir, CompressThreshold, CompressFrequency]) ->
 	Handle = uplevel:handle(ElevelDBDir),
 	AnnalistAPIServer =

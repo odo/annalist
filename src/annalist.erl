@@ -20,7 +20,7 @@
 ]).
 
 -type tags() :: [binary()].
--type time() :: {integer(), integer(), integer(), integer(), integer(), integer()}.
+-type time() :: {{integer(), integer(), integer()}, {integer(), integer(), integer()}}.
 
 start(LevelDBDir, Host, Port, OutsidePort, Password, CompressThreshold, CompressFrequency) ->
 	application:set_env(annalist, level_db_dir, LevelDBDir),

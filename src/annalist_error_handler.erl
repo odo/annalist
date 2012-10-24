@@ -29,7 +29,7 @@ add_handler(Keys) ->
 	error_logger:add_report_handler(?MODULE, Keys).
 
 delete_handler() ->
-	error_logger:delete_report_handler(?MODULE, []).
+	error_logger:delete_report_handler(?MODULE).
 
 handle_event({error, _, _}, State = [{keys, Keys}]) ->
 	annalist:count(Keys),
@@ -38,11 +38,11 @@ handle_event({error, _, _}, State = [{keys, Keys}]) ->
 handle_event(_, State) ->
 	{ok, State}.
 
-handle_call(_Request, _State) ->
-    {error, not_implemented}.
+handle_call(_Request, State) ->
+    {ok, undefiend , State, hibernate}.
 
-handle_info(_Msg, _State) ->
-    {error, not_implemented}.
+handle_info(_Msg, State) ->
+    {ok, State}.
 
-code_change(_OldVsn, _State, _Extra) ->
-    {error, not_implemented}.
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.

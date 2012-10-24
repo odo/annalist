@@ -14,7 +14,7 @@
 ]).
 
 -type tags() :: [binary()].
--type time() :: {integer(), integer(), integer(), integer(), integer(), integer()}.
+-type time() :: {{integer(), integer(), integer()}, {integer(), integer(), integer()}}.
 
 % callbacks
 -export ([init/1, stop/0, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, start_link/1]).
@@ -25,7 +25,7 @@ queue_length() ->
 	{_, Length}  = erlang:process_info(whereis(?SERVER), message_queue_len),
 	Length.
 
--spec start_link(list()) -> [{ok, pid()}].
+-spec start_link(list()) -> 'ignore' | {'error',_} | {'ok',pid()}.
 start_link(ElevelDBHandle) ->
 	gen_server:start_link({local, ?SERVER}, ?MODULE, [ElevelDBHandle], []).
 	

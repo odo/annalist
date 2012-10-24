@@ -36,7 +36,7 @@ even(Value) ->
 natural(Value) ->
 	(erlang:trunc(Value) * 1.0) =:= Value.
 
--spec ranks(integer(), float()) -> integer().
+-spec ranks(integer(), float()) -> [integer()] | [integer()|integer()].
 ranks(Size, _Quantile) when Size < 1 ->
 	throw({error, {Size, size_smaller_one}});
 

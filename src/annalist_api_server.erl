@@ -20,51 +20,54 @@
 				{integer(), integer(), integer(), integer()} | 
 				{integer(), integer(), integer()} | 
 				{integer(), integer()} | 
-				{integer()}. 
+				{integer()} |
+				{}.
+
+-type scope_error() :: {error, {invlid_combination, [{scope, any()} | {time_start, any()}]}}.
 
 % callbacks
 -export ([init/1, stop/0, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, start_link/1]).
 
 
--spec start_link(list()) -> [{ok, pid()}].
+-spec start_link(list()) -> 'ignore' | {'error',_} | {'ok',pid()}.
 start_link(ElevelDBHandle) ->
 	gen_server:start_link({local, ?SERVER}, ?MODULE, [ElevelDBHandle], []).
 	
 stop() ->
 	gen_server:call(?SERVER, {stop}).
 
--spec counts_with_labels(tags(), total) -> ok.
+-spec counts_with_labels(tags(), total) -> ok | scope_error().
 counts_with_labels(Tags, total) ->
 	counts_with_labels(Tags, total, {}, 1).
 
--spec counts_with_labels(tags(), scope(), time(), integer()) -> ok.
+-spec counts_with_labels(tags(), scope(), time(), integer()) -> ok | scope_error().
 counts_with_labels(Tags, Scope, TimeStart, Steps) ->
 	validate(Scope, TimeStart),
 	gen_server:call(?SERVER, {counts_with_labels, Tags, Scope, TimeStart, Steps}).
 
--spec quantiles_with_labels(tags(), total, number()) -> ok.
+-spec quantiles_with_labels(tags(), total, number()) -> ok | scope_error().
 quantiles_with_labels(Tags, total, Quantile) ->
 	quantiles_with_labels(Tags, total, {}, 1, Quantile).
 
--spec quantiles_with_labels(tags(), scope(), time(), integer(), number()) -> ok.
+-spec quantiles_with_labels(tags(), scope(), time(), integer(), number()) -> ok | scope_error().
 quantiles_with_labels(Tags, Scope, TimeStart, Steps, Quantile) ->
 	validate(Scope, TimeStart),
 	gen_server:call(?SERVER, {quantiles_with_labels, Tags, Scope, TimeStart, Steps, Quantile}).
 
--spec counts(tags(), total) -> ok.
+-spec counts(tags(), total) -> ok | scope_error().
 counts(Tags, total) ->
 	counts(Tags, total, {}, 1).
 
--spec counts(tags(), scope(), time(), integer()) -> ok.
+-spec counts(tags(), scope(), time(), integer()) -> ok | scope_error().
 counts(Tags, Scope, TimeStart, Steps) ->
 	validate(Scope, TimeStart),
 	gen_server:call(?SERVER, {counts, Tags, Scope, TimeStart, Steps}).
 
--spec quantiles(tags(), total, number()) -> ok.
+-spec quantiles(tags(), total, number()) -> ok | scope_error().
 quantiles(Tags, total, Quantile) ->
 	quantiles(Tags, total, {}, 1, Quantile).
 
--spec quantiles(tags(), scope(), time(), integer(), number()) -> ok.
+-spec quantiles(tags(), scope(), time(), integer(), number()) -> ok | scope_error().
 quantiles(Tags, Scope, TimeStart, Steps, Quantile) ->
 	validate(Scope, TimeStart),
 	gen_server:call(?SERVER, {quantiles, Tags, Scope, TimeStart, Steps, Quantile}).
@@ -99,9 +102,8 @@ handle_call({leveldb_handle}, _From, State) ->
 handle_call({stop}, _From, State) ->
   {stop, normal, stopped, State}.
 
-handle_cast(_Msg, _State) ->
-  throw(not_implemented),
-  {undefined, undefined, undefined, undefined}.
+handle_cast(_Msg, State) ->
+  {noreply, State}.
 
 handle_info(_Info, State) ->
 	{noreply, State}.
@@ -119,4 +121,4 @@ validate(day, 		{_, _, _}) 			-> true;
 validate(hour, 		{_, _, _, _}) 		-> true;
 validate(minute, 	{_, _, _, _, _}) 	-> true;
 validate(second, 	{_, _, _, _, _, _})	-> true;
-validate(Scope, TimeStart)				-> throw({invlid_combination, [{scope, Scope}, {time_start, TimeStart}]}).
+validate(Scope, TimeStart)				-> {error, {invalid_combination, [{scope, Scope}, {time_start, TimeStart}]}}.
