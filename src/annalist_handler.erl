@@ -27,64 +27,13 @@ handle(Req, State) ->
 	{Hour, _} 	= cowboy_req:binding(hour, Req),
 	{Minute, _} = cowboy_req:binding(minute, Req),
 	{Second, _} = cowboy_req:binding(second, Req),
-	Counts =
-	case Context of
-		total ->
-			annalist_api_server:counts(Tags, Context);
-		year ->
-			annalist_api_server:counts(Tags, Context, 
-				{
-					binary_to_integer(Year)
-				}
-				, Count);
-		month ->
-			annalist_api_server:counts(Tags, Context, 
-				{
-					binary_to_integer(Year),
-					binary_to_integer(Month)
-				}
-				, Count);
-		day ->
-			annalist_api_server:counts(Tags, Context, 
-				{
-					binary_to_integer(Year),
-					binary_to_integer(Month),
-					binary_to_integer(Day)
-				}
-				, Count);
-		hour ->
-			annalist_api_server:counts(Tags, Context, 
-				{
-					binary_to_integer(Year),
-					binary_to_integer(Month),
-					binary_to_integer(Day),
-					binary_to_integer(Hour)
-				}
-				, Count);
-		minute ->
-			annalist_api_server:counts(Tags, Context, 
-				{
-					binary_to_integer(Year),
-					binary_to_integer(Month),
-					binary_to_integer(Day),
-					binary_to_integer(Hour),
-					binary_to_integer(Minute)
-				}
-				, Count);
-		second ->
-			annalist_api_server:counts(Tags, second, 
-				{
-					binary_to_integer(Year),
-					binary_to_integer(Month),
-					binary_to_integer(Day),
-					binary_to_integer(Hour),
-					binary_to_integer(Minute),
-					binary_to_integer(Second)
-				}
-				, Count);
-		Other ->
-			throw({error, {unknown_context, Other}})
-	end,
+	Times = list_to_tuple(
+		lists:filter(
+			fun(E) -> E =/= undefined end,
+			[binary_to_integer(E)||E<-[Year, Month, Day, Hour, Minute, Second]]
+		)
+	),
+	Counts = annalist_api_server:counts(Tags, Context, Times, Count),
 	JSON = json:to_binary(Counts, Callback),
 	ContentType =
 	case Callback of
