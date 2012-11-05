@@ -18,6 +18,7 @@ start(_StartType, _StartArgs) ->
 	CompressFrequency = 	env_or_throw(compress_frequency),
 	% start http interface
 	application:start(ranch),
+	application:start(crypto),
 	application:start(cowboy),
 	Dispatch = [
     %% {Host, list({Path, Handler, Opts})}
