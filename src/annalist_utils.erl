@@ -75,21 +75,16 @@ decode_time(<<Year:16, Month:8, Day:8, Hour:8, Minute:8>>) ->
 decode_time(<<Year:16, Month:8, Day:8, Hour:8, Minute:8, Second:8>>) ->
 	{Year, Month, Day, Hour, Minute, Second}.
 
-unsparse_range(ListSparse, Keys, Default) ->
-	lists:reverse(unsparse_range(ListSparse, Keys, Default, [])).
-
-unsparse_range(ListSparse = [{KSparse, VSparse}|RestSparse], [Key | Keys], Default, Acc) ->
-	{AccNew, SparseNew} = case KSparse =:= Key of
+unsparse_range(ListSparse = [{KSparse, VSparse}|RestSparse], [Key | Keys], Default) ->
+	case KSparse =:= Key of
 		true ->
-			{[{KSparse, VSparse} | Acc], RestSparse};
+			[{KSparse, VSparse} | unsparse_range(RestSparse, Keys, Default)];
 		false ->
-			{[{Key, Default} | Acc], ListSparse}
-	end,
-	unsparse_range(SparseNew, Keys, Default, AccNew);
+			[{Key, Default} 	| unsparse_range(ListSparse, Keys, Default)]
+	end;
 
-unsparse_range([], Keys, Default, Acc) ->
-	Rest = [{K, Default}|| K <- Keys],
-	lists:reverse(Rest) ++ Acc;
+unsparse_range([], Keys, Default) ->
+	[{K, Default}|| K <- Keys];
 
-unsparse_range(_, [], _Default, Acc) ->
-	Acc.
+unsparse_range(_, [], _) ->
+	[].

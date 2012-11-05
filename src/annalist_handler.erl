@@ -28,10 +28,7 @@ handle(Req, State) ->
 	{Minute, _} = cowboy_req:binding(minute, Req),
 	{Second, _} = cowboy_req:binding(second, Req),
 	Times = list_to_tuple(
-		lists:filter(
-			fun(E) -> E =/= undefined end,
-			[binary_to_integer(E)||E<-[Year, Month, Day, Hour, Minute, Second]]
-		)
+		[binary_to_integer(E)||E<-[Year, Month, Day, Hour, Minute, Second], E =/= undefined]
 	),
 	Counts = annalist_api_server:counts(Tags, Context, Times, Count),
 	JSON = json:to_binary(Counts, Callback),
