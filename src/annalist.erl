@@ -23,13 +23,16 @@
 -type time() :: {{integer(), integer(), integer()}, {integer(), integer(), integer()}}.
 
 start(LevelDBDir, Host, Port, OutsidePort, Password, CompressThreshold, CompressFrequency) ->
-	application:set_env(annalist, level_db_dir, LevelDBDir),
-	application:set_env(annalist, host, 		Host),
-	application:set_env(annalist, port, 		Port),
-	application:set_env(annalist, outside_port, OutsidePort),
-	application:set_env(annalist, password, 	Password),
-	application:set_env(annalist, compress_threshold, 	CompressThreshold),
-	application:set_env(annalist, compress_frequency, 	CompressFrequency),
+	SetEnv = fun(Key, Value) ->
+		application:set_env(annalist, Key, Value)
+	end,
+	SetEnv(level_db_dir, 		LevelDBDir),
+	SetEnv(host, 				Host),
+	SetEnv(port, 				Port),
+	SetEnv(outside_port, 		OutsidePort),
+	SetEnv(password, 			Password),
+	SetEnv(compress_threshold, 	CompressThreshold),
+	SetEnv(compress_frequency, 	CompressFrequency),
 	application:start(annalist).
 
 start() ->
