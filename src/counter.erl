@@ -3,10 +3,6 @@
 % This module provides functions for counting single events and
 % requesting time series of accumulated numbers of events.
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 -export([
 	count/4,
 	counts/5,
@@ -72,37 +68,3 @@ increment(Increment, Tags, Time, Scope, DBHandle) ->
 		{Key, Number} -> Number
 	end,
 	uplevel:put(Bucket, Key, Count + Increment, DBHandle, []).	
-
-
-%% ===================================================================
-%% EUnit tests
-%% ===================================================================
-
--ifdef(TEST).
-
-time_encoding_test()  ->
-	Times = [
-	{},
-	{2001},
-	{2001, 12},
-	{2001, 12, 31},
-	{2001, 12, 31, 23},
-	{2001, 12, 31, 23, 59},
-	{2001, 12, 31, 23, 59, 59}
-	],
-	[?assertEqual(Time, annalist_utils:decode_time(annalist_utils:encode_time(Time))) || Time <- Times].
-
-tag_encoding_test() ->
-	?assertEqual(<<"$annalist_counts/first/second/third">>, annalist_utils:encode_count_bucket([<<"first">>, <<"second">>, <<"third">>])).
-
-unsparse_range_test() ->
-	Sparse = [{1, <<"one">>}, {2, <<"two">>}, {4, <<"four">>}],
-	?assertEqual([{1, <<"one">>}, {2, <<"two">>}], annalist_utils:unsparse_range([{1, <<"one">>}, {2, <<"two">>}], [1, 2], undefined)),
-	?assertEqual([{1, <<"one">>}, {2, <<"two">>}], annalist_utils:unsparse_range([{1, <<"one">>}, {2, <<"two">>}, {2, <<"three">>}], [1, 2], undefined)),
-	?assertEqual([{1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}], annalist_utils:unsparse_range(Sparse, [1, 2, 3, 4], undefined)),
-	?assertEqual([{1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}, {5, undefined}], annalist_utils:unsparse_range(Sparse, [1, 2, 3, 4, 5], undefined)),
-	?assertEqual([{0, undefined}, {1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}], annalist_utils:unsparse_range(Sparse, [0, 1, 2, 3, 4], undefined)),
-	?assertEqual([{-1, undefined}, {0, undefined}, {1, <<"one">>}, {2, <<"two">>}, {3, undefined}, {4, <<"four">>}, {5, undefined}, {6, undefined}], annalist_utils:unsparse_range(Sparse, [-1, 0, 1, 2, 3, 4, 5, 6], undefined)),
-	?assertEqual([{0, undefined}, {1, undefined}, {2, undefined}, {3, undefined}], annalist_utils:unsparse_range([], [0, 1, 2, 3], undefined)).
-
--endif.
