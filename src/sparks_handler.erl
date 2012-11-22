@@ -5,7 +5,7 @@ init({tcp, http}, Req, _Opts) ->
     {ok, Req, {}}.
 
 handle(Req, State) ->
-    Req2 = cowboy_req:reply(200, [], page(), Req),
+    {ok, Req2} = cowboy_req:reply(200, [], page(), Req),
     {ok, Req2, State}.
 
 terminate(_Req, _State) ->
