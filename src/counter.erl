@@ -9,6 +9,9 @@
 	counts_with_labels/5
 ]).
 
+counts(Tags, total, TimeStart, _, DBHandle) ->
+	[V || {_, V} <- counts_with_labels(Tags, total, TimeStart, 1, DBHandle)];
+
 counts(Tags, Scope, TimeStart, Steps, DBHandle) ->
 	[V || {_, V} <- counts_with_labels(Tags, Scope, TimeStart, Steps, DBHandle)].
 

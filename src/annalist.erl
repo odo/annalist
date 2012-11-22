@@ -200,6 +200,7 @@ test_counts() ->
                  {{2012,2,6,17,22,5},1},
                  {{2012,2,6,17,22,6},0}],
                  annalist_api_server:counts_with_labels([<<"one">>], second, {2012,2,6,17,22,4}, 3)),
+	?assertEqual([1], annalist_api_server:counts([<<"one">>], total, {}, 1)),
 	?assertEqual([0, 1, 0], annalist_api_server:counts([<<"one">>], second, {2012,2,6,17,22,4}, 3)).
 
 -endif.
