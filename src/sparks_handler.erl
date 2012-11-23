@@ -23,11 +23,11 @@ page_string() ->
     'http://www.w3.org/TR/html4/strict.dtd'>
 <head>
     <style type='text/css'>
-        .label1 {display:block; float:left; font-size: x-large; width: 250px;}
-        .label2 {display:block; float:left; font-size: medium; width: 250px;}
-        .label3 {display:block; float:left; font-size: small; width: 250px;}
-        .label4 {display:block; float:left; font-size: small; width: 250px;}
-        .label5 {display:block; float:left; font-size: small; width: 250px;}
+        .label1 {display:block; float:left; font-size: large; width:  350px;}
+        .label2 {display:block; float:left; font-size: medium; width: 350px;}
+        .label3 {display:block; float:left; font-size: small; width:  350px;}
+        .label4 {display:block; float:left; font-size: small; width:  350px;}
+        .label5 {display:block; float:left; font-size: small; width:  350px;}
         a {text-decoration: none; color: black;}
     </style>
     <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js' type='text/javascript'></script>
