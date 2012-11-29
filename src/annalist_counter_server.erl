@@ -9,6 +9,7 @@
 	queue_length/0
 	, beacon/0
 	, count/1, count/2
+	, count_many/2, count_many/3
 	, count_sync/1, count_sync/2
 	, count_sparse/2, count_sparse/3
 ]).
@@ -52,6 +53,14 @@ count(Tags) ->
 -spec count(tags(), time()) -> ok.
 count(Tags, Time = {{_, _, _}, {_, _, _}}) ->
 	gen_server:cast(?SERVER, {count, Tags, Time}).
+
+-spec count_many(tags(), non_neg_integer()) -> ok.
+count_many(Tags, Count) ->
+	gen_server:cast(?SERVER, {count_many, Tags, Count, calendar:universal_time()}).
+
+-spec count_many(tags(), non_neg_integer(), time()) -> ok.
+count_many(Tags, Count, Time = {{_, _, _}, {_, _, _}}) ->
+	gen_server:cast(?SERVER, {count_many, Tags, Count, Time}).
 
 -spec count_sparse(tags(), non_neg_integer()) -> ok.
 count_sparse(Tags, SparsenessFactor) ->
@@ -100,6 +109,10 @@ handle_cast({count, Tags, Time}, State) ->
 	counter:count(1, Tags, Time, State#state.handle),
 	{noreply, State};
 	
+handle_cast({count_many, Tags, Count, Time}, State) ->
+	counter:count(Count, Tags, Time, State#state.handle),
+	{noreply, State};
+
 handle_cast({count_inc, Increment, Tags, Time}, State) ->
 	counter:count(Increment, Tags, Time, State#state.handle),
 	{noreply, State}.
