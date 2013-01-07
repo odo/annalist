@@ -35,7 +35,7 @@ start(_StartType, _StartArgs) ->
 		]}
 	],
 	%% Name, NbAcceptors, TransOpts, ProtoOpts
-	cowboy:start_http(annalist_listener, 100, [{port, Port}], [{dispatch, Dispatch}]),
+	cowboy:start_http(annalist_listener, 100, [{port, Port}], [{env, [{dispatch, Dispatch}]}]),
 	application:start(sasl),
 	annalist_sup:start_link(LevelDBDir, CompressThreshold, CompressFrequency).
 
