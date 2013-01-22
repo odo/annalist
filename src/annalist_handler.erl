@@ -1,6 +1,6 @@
 
 -module(annalist_handler).
--export([init/3, handle/2, terminate/2]).
+-export([init/3, handle/2, terminate/3]).
 -record(state, {context}).
 
 init({tcp, http}, Req, Opts) ->
@@ -41,7 +41,7 @@ handle(Req, State) ->
     {ok, Req3} = cowboy_req:reply(200, [], JSON, Req2),
     {ok, Req3, State}.
 
-terminate(_Req, _State) ->
+terminate(_Reason, _Req, _State) ->
     ok.
 
 binary_to_integer(undefined) ->
