@@ -22,7 +22,7 @@ page_string() ->
 	"<html>
 <head>
 <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js' type='text/javascript'></script>
-<script src='http://www.highcharts.com/js/highstock.js' type='text/javascript'></script>
+<script src='http://code.highcharts.com/stock/1.2.5/highstock.js' type='text/javascript'></script>
 <script type='text/javascript'>
 
 Host = '$$HOST$$';
